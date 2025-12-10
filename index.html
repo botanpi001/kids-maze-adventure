@@ -814,36 +814,37 @@
                 return cells;
             }
 
-            // Duplicate methods removed
+        }
+        }
 
 
         /**
          * 初期化
          */
         window.onload = () => {
-                canvas = document.getElementById('gameCanvas');
-                ctx = canvas.getContext('2d');
+            canvas = document.getElementById('gameCanvas');
+            ctx = canvas.getContext('2d');
 
-                canvas.addEventListener('mousedown', startDraw);
-                canvas.addEventListener('mousemove', drawing);
-                canvas.addEventListener('mouseup', endDraw);
-                canvas.addEventListener('mouseout', endDraw);
-                canvas.addEventListener('touchstart', startDraw, { passive: false });
-                canvas.addEventListener('touchmove', drawing, { passive: false });
-                canvas.addEventListener('touchend', endDraw);
+            canvas.addEventListener('mousedown', startDraw);
+            canvas.addEventListener('mousemove', drawing);
+            canvas.addEventListener('mouseup', endDraw);
+            canvas.addEventListener('mouseout', endDraw);
+            canvas.addEventListener('touchstart', startDraw, { passive: false });
+            canvas.addEventListener('touchmove', drawing, { passive: false });
+            canvas.addEventListener('touchend', endDraw);
 
-                window.addEventListener('keydown', (e) => {
-                    if (currentMode === 'B' && !isGameClear) {
-                        if (e.key === 'ArrowUp') handleDPad('UP');
-                        if (e.key === 'ArrowDown') handleDPad('DOWN');
-                        if (e.key === 'ArrowLeft') handleDPad('LEFT');
-                        if (e.key === 'ArrowRight') handleDPad('RIGHT');
-                    }
-                });
+            window.addEventListener('keydown', (e) => {
+                if (currentMode === 'B' && !isGameClear) {
+                    if (e.key === 'ArrowUp') handleDPad('UP');
+                    if (e.key === 'ArrowDown') handleDPad('DOWN');
+                    if (e.key === 'ArrowLeft') handleDPad('LEFT');
+                    if (e.key === 'ArrowRight') handleDPad('RIGHT');
+                }
+            });
 
-                resizeCanvas();
-                window.addEventListener('resize', resizeCanvas);
-            };
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+        };
 
         function resizeCanvas() {
             // UIの高さを考慮してリサイズ
