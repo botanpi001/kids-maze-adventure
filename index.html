@@ -62,6 +62,12 @@
             box-shadow: 0 2px 0 #00897B;
         }
 
+        .mode-btn.small {
+            padding: 15px 10px;
+            font-size: 1.2rem;
+            flex: 1;
+        }
+
         .mode-btn.purple {
             background-color: #9575CD;
             box-shadow: 0 6px 0 #5E35B1;
@@ -259,8 +265,15 @@
     <div id="menu">
         <h1>🐶 知育迷路 🍎</h1>
         <button class="mode-btn" onclick="startGame('A')">✏️ おえかき迷路</button>
-        <div style="height: 20px;"></div>
-        <button class="mode-btn purple" onclick="startGame('B')">🗺️ ぼうけん迷路</button>
+
+        <div style="margin-top: 30px; width: 100%;">
+            <h2 style="color: #9575CD; margin-bottom: 10px; font-size: 1.5rem;">🗺️ ぼうけん迷路</h2>
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button class="mode-btn purple small" onclick="startGame('B', 1)">Lv.1</button>
+                <button class="mode-btn purple small" onclick="startGame('B', 11)">Lv.2</button>
+                <button class="mode-btn purple small" onclick="startGame('B', 21)">Lv.3</button>
+            </div>
+        </div>
     </div>
 
     <!-- ゲーム画面 -->
