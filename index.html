@@ -488,62 +488,124 @@
             }
 
             static placeItemsLV3(map, start, goal, level) {
-                // LV3: 分岐あり。
+                // LV3: 分岐あり & ひっかけあり (Active Branch Baiting)
                 // アルゴリズム:
-                // 1. ゴールへのパスを1つ確定させる（正解ルート）
-                // 2. 正解ルート上に「目標数」個のりんごを置く
-                // 3. 正解ルート「以外」の場所にダミーのりんごを置く
-                // これにより、正解ルートを通れば必ずクリアできることが保証される。
+                // 1. 正解ルート (Solution Path) を確定
+                // 2. 正解ルート上に「目標数」のりんごを配置
+                // 3. 正解ルートから分岐する「不正解ルート (Branch)」を検出
+                // 4. 不正解ルート上に「ダミーりんご」を配置（これがひっかけになる）
 
                 const path = this.findPath(map, start, goal);
-
-                // パスが見つからない場合は生成失敗（通常ありえないが）
                 if (!path || path.length === 0) return map;
 
-                // 目標アイテム数を設定 (3〜5個)
+                // 目標数
                 let target = 3 + (level % 3);
                 targetItemCount = target;
                 isExactCountMode = true;
 
-                // 正解ルート上の座標をSetにする（検索用）
                 const pathSet = new Set(path.map(p => `${p.x},${p.y}`));
 
-                // パス上からランダムに apple 候補を選ぶ（スタート・ゴール除く）
+                // 2. 正解ルート配置
                 const candidates = path.slice(1, path.length - 1);
                 this.shuffle(candidates);
-
                 let placed = 0;
-                // 正解ルートにりんごを置く
                 for (const p of candidates) {
                     if (placed >= target) break;
                     map[p.y][p.x] = 4;
                     placed++;
                 }
+                if (placed < target) targetItemCount = placed;
 
-                // もしパスが短すぎて目標数置けなかった場合、目標数を下げる
-                if (placed < target) {
-                    targetItemCount = placed;
+                // 3. 分岐ルート検出
+                let branches = [];
+                for (const p of path) {
+                    const dirs = [{ x: 0, y: -1 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 1, y: 0 }];
+                    this.shuffle(dirs);
+                    for (const d of dirs) {
+                        const nx = p.x + d.x;
+                        const ny = p.y + d.y;
+
+                        // 道であり、かつ正解ルートに含まれていないマス＝分岐の始まり
+                        if (nx >= 0 && nx < gridSize && ny >= 0 && ny < gridSize) {
+                            if (map[ny][nx] === 0 && !pathSet.has(`${nx},${ny}`)) {
+                                // この分岐の先にあるマスをいくつか収集する
+                                const branchCells = this.collectBranchCells(map, nx, ny, pathSet);
+                                if (branchCells.length > 0) {
+                                    branches.push(branchCells);
+                                }
+                            }
+                        }
+                    }
                 }
 
-                // ダミー（罠）アイテムの配置
-                // 【重要】正解ルート上（pathSet）には絶対に置かない
-                let dummyCount = 4 + (level % 3); // 少し多めに
-                let placedDummy = 0;
-                let attempts = 0;
+                // 4. ダミー配置 (分岐ルート優先)
+                // 分岐が見つかれば、そこに積極的に置く
+                this.shuffle(branches);
 
-                while (placedDummy < dummyCount && attempts < 300) {
+                let dummyCountTotal = 0;
+                const maxDummy = 5 + (level % 3);
+
+                // 各分岐に少しずつ置く
+                for (const branch of branches) {
+                    if (dummyCountTotal >= maxDummy) break;
+
+                    // その分岐にいくつ置くか（1〜2個）
+                    const countInThisBranch = 1 + Math.floor(Math.random() * 2);
+
+                    this.shuffle(branch);
+                    let placedInBranch = 0;
+                    for (const cell of branch) {
+                        if (placedInBranch >= countInThisBranch) break;
+                        map[cell.y][cell.x] = 4;
+                        placedInBranch++;
+                        dummyCountTotal++;
+                    }
+                }
+
+                // もし分岐が少なすぎてダミーが置けなかった場合、ランダム配置で埋め合わせ
+                let attempts = 0;
+                while (dummyCountTotal < 2 && attempts < 100) {
                     attempts++;
                     let x = Math.floor(Math.random() * gridSize);
                     let y = Math.floor(Math.random() * gridSize);
-
-                    // 道(0)であり、スタート・ゴールでなく、正解ルート上でもない場所
-                    if (map[y][x] === 0 && !pathSet.has(`${x},${y}`) && !(x === start.x && y === start.y) && !(x === goal.x && y === goal.y)) {
+                    if (map[y][x] === 0 && !pathSet.has(`${x},${y}`) && map[y][x] !== 4) {
                         map[y][x] = 4;
-                        placedDummy++;
+                        dummyCountTotal++;
                     }
                 }
 
                 return map;
+            }
+
+            // 分岐の先の道マスを収集する（深さ3くらいまで）
+            static collectBranchCells(map, startX, startY, excludeSet) {
+                let cells = [];
+                let q = [{ x: startX, y: startY }];
+                let visited = new Set();
+                visited.add(`${startX},${startY}`);
+
+                // 元のパスも訪問済みとして扱って逆流防止
+                excludeSet.forEach(s => visited.add(s));
+
+                let limit = 10; // 探索上限
+                while (q.length > 0 && limit > 0) {
+                    limit--;
+                    const curr = q.shift();
+                    cells.push(curr);
+
+                    const dirs = [{ x: 0, y: -1 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 1, y: 0 }];
+                    for (const d of dirs) {
+                        const nx = curr.x + d.x;
+                        const ny = curr.y + d.y;
+                        if (nx >= 0 && nx < gridSize && ny >= 0 && ny < gridSize) {
+                            if (map[ny][nx] === 0 && !visited.has(`${nx},${ny}`)) {
+                                visited.add(`${nx},${ny}`);
+                                q.push({ x: nx, y: ny });
+                            }
+                        }
+                    }
+                }
+                return cells;
             }
 
             static findPath(map, start, goal) {
