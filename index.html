@@ -162,6 +162,10 @@
             width: 100%;
             /* 縦画面時は幅いっぱい */
             max-width: 400px;
+            padding-bottom: 40px;
+            /* タスクバーとの重なり防止 */
+            justify-content: flex-end;
+            /* 下寄せ */
         }
 
         #d-pad {
@@ -169,7 +173,8 @@
             grid-template-columns: 1fr 1fr 1fr;
             grid-template-rows: 1fr 1fr;
             gap: 10px;
-            margin-top: 10px;
+            margin-top: 5px;
+            /* マージン削減 */
         }
 
         button {
@@ -201,7 +206,10 @@
         }
 
         #d-pad-sub {
-            margin-top: 15px;
+            margin-top: 10px;
+            /* マージン削減 */
+            margin-bottom: 20px;
+            /* 下に余白 */
             display: none;
             width: 100%;
             text-align: center;
@@ -481,43 +489,55 @@
 
             static placeItemsLV3(map, start, goal, level) {
                 // LV3: 分岐あり。
-                // 複数のルートがあるかもしれないが、単純なDFSをして、
-                // 「あるルートを通るとアイテムがN個になる」ように配置する。
+                // アルゴリズム:
+                // 1. ゴールへのパスを1つ確定させる（正解ルート）
+                // 2. 正解ルート上に「目標数」個のりんごを置く
+                // 3. 正解ルート「以外」の場所にダミーのりんごを置く
+                // これにより、正解ルートを通れば必ずクリアできることが保証される。
 
-                // まず最短パス(に近いもの)を取得
                 const path = this.findPath(map, start, goal);
 
-                // 目標アイテム数を設定 (3〜6個)
+                // パスが見つからない場合は生成失敗（通常ありえないが）
+                if (!path || path.length === 0) return map;
+
+                // 目標アイテム数を設定 (3〜5個)
                 let target = 3 + (level % 3);
                 targetItemCount = target;
                 isExactCountMode = true;
 
-                // パス上にtarget個だけ置く
+                // 正解ルート上の座標をSetにする（検索用）
+                const pathSet = new Set(path.map(p => `${p.x},${p.y}`));
+
+                // パス上からランダムに apple 候補を選ぶ（スタート・ゴール除く）
                 const candidates = path.slice(1, path.length - 1);
                 this.shuffle(candidates);
 
-                // 正解ルートのセットアップ
                 let placed = 0;
-                let correctItemLocs = [];
+                // 正解ルートにりんごを置く
                 for (const p of candidates) {
                     if (placed >= target) break;
                     map[p.y][p.x] = 4;
-                    correctItemLocs.push(`${p.x},${p.y}`);
                     placed++;
                 }
 
+                // もしパスが短すぎて目標数置けなかった場合、目標数を下げる
+                if (placed < target) {
+                    targetItemCount = placed;
+                }
+
                 // ダミー（罠）アイテムの配置
-                // パス以外の場所や、パス上だが目標個数を超えてしまう場所に置く
-                // 分岐先に置くのが効果的
-                let dummyCount = 3;
+                // 【重要】正解ルート上（pathSet）には絶対に置かない
+                let dummyCount = 4 + (level % 3); // 少し多めに
                 let placedDummy = 0;
                 let attempts = 0;
-                while (placedDummy < dummyCount && attempts < 200) {
+
+                while (placedDummy < dummyCount && attempts < 300) {
                     attempts++;
                     let x = Math.floor(Math.random() * gridSize);
                     let y = Math.floor(Math.random() * gridSize);
 
-                    if (map[y][x] === 0 && !correctItemLocs.includes(`${x},${y}`) && !(x === start.x && y === start.y) && !(x === goal.x && y === goal.y)) {
+                    // 道(0)であり、スタート・ゴールでなく、正解ルート上でもない場所
+                    if (map[y][x] === 0 && !pathSet.has(`${x},${y}`) && !(x === start.x && y === start.y) && !(x === goal.x && y === goal.y)) {
                         map[y][x] = 4;
                         placedDummy++;
                     }
