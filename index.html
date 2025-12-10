@@ -334,7 +334,10 @@
         /**
          * setting
          */
-        const TOTAL_LEVELS = 30;
+        /**
+     * setting
+     */
+        const TOTAL_LEVELS = 40; // LV4まで実装
 
         /**
          * 変数
@@ -351,6 +354,7 @@
 
         let targetItemCount = 0; // 集めるべき目標数（LV3用）
         let isExactCountMode = false; // ぴったり集めるモードか
+        let hasKey = false; // LV4用: 鍵を持っているか
 
         let isGameClear = false;
 
@@ -380,39 +384,206 @@
                 // スタートは常に(1,1)
                 let start = { x: 1, y: 1 };
 
-                // 迷路生成
+                // 迷路生成分岐
                 if (level <= 10) {
-                    // LV1: 素直な迷路
-                    this.carve(map, start.x, start.y, 0.5); // Randomness high
-                } else if (level <= 20) {
-                    // LV2: 迷わせる迷路 (直進性を低くしてグネグネさせる)
-                    // Recursive Backtrackerは元々グネグネしやすいが、方向決定にランダム性を強くする
-                    this.carve(map, start.x, start.y, 1.0);
-                } else {
-                    // LV3: 分岐あり迷路（ループを作る）
+                    // LV1
                     this.carve(map, start.x, start.y, 0.5);
-                    this.addLoops(map, 3 + Math.floor((level - 20) / 3)); // ループを追加して分岐を作る
+                    this.setDefaultStartGoal(map, size, start);
+                    return this.placeItemsStandard(map, start, this.getGoal(map, size), level);
+                } else if (level <= 20) {
+                    // LV2
+                    this.carve(map, start.x, start.y, 1.0);
+                    this.setDefaultStartGoal(map, size, start);
+                    return this.placeItemsStandard(map, start, this.getGoal(map, size), level);
+                } else if (level <= 30) {
+                    // LV3
+                    this.carve(map, start.x, start.y, 0.5);
+                    this.addLoops(map, 3 + Math.floor((level - 20) / 3));
+                    this.setDefaultStartGoal(map, size, start);
+                    return this.placeItemsLV3(map, start, this.getGoal(map, size), level);
+                } else {
+                    // LV4: Key & Door (Loop)
+                    return this.generateLevel4(map, size, level);
                 }
+            }
 
-                // ゴール設定（右下付近）
+            static setDefaultStartGoal(map, size, start) {
                 let gx = size - 2;
                 let gy = size - 2;
                 while (map[gy][gx] === 1) {
                     if (gx > 1) gx--;
                     else { gx = size - 2; gy--; }
                 }
-                let goal = { x: gx, y: gy };
-
                 map[start.y][start.x] = 2;
-                map[goal.y][goal.x] = 3;
+                map[gy][gx] = 3;
+            }
 
-                // アイテム配置
-                // LV3だけロジックが異なる（正解ルートと不正解ルートを作る）
-                if (level > 20) {
-                    return this.placeItemsLV3(map, start, goal, level);
-                } else {
-                    return this.placeItemsStandard(map, start, goal, level);
+            static getGoal(map, size) {
+                for (let y = 0; y < size; y++) {
+                    for (let x = 0; x < size; x++) {
+                        if (map[y][x] === 3) return { x, y };
+                    }
                 }
+                return { x: size - 2, y: size - 2 };
+            }
+
+            static generateLevel4(map, size, level) {
+                // LV4: ループ迷路。鍵を取って戻らないでゴールへ。
+                // 構成: スタート → (長い道) → 鍵 → (長い道) → 扉 → ゴール
+
+                // 1. 全部壁にする（初期化済み）
+
+                // 2. スタート地点 (1,1)
+                let sx = 1, sy = 1;
+                map[sy][sx] = 2;
+
+                // 3. 扉地点とゴール地点を決める
+                // スタートのすぐ近くに扉を置くことで「一見近いけど通れない」状況を作る
+                // 例えば (1,2) を扉、(1,3) をゴールにする
+                // ただし、(1,2)に行けないように迂回ルートを作る必要がある
+
+                // シンプルなループを作るため、外周に近いルートを掘る
+                // スタートから時計回りに掘っていくイメージ
+
+                let path = [];
+                let cx = sx, cy = sy;
+
+                // 簡易的なループ生成ロジック:
+                // 格子状のポイントを巡回するパスを作る
+                // 単純に外周をぐるっと回るだけだと簡単すぎるので、Recursive Backtrackerで一本道を作ったあと、
+                // スタート付近とゴール付近を接続する（扉で）
+
+                this.carve(map, sx, sy, 0.8);
+
+                // ゴール候補を探す（スタートから一番遠い点）
+                let distMap = this.getDistanceMap(map, { x: sx, y: sy });
+                let maxDist = -1;
+                let gx = sx, gy = sy;
+
+                for (let y = 0; y < size; y++) {
+                    for (let x = 0; x < size; x++) {
+                        if (distMap[y][x] > maxDist) {
+                            maxDist = distMap[y][x];
+                            gx = x; gy = y;
+                        }
+                    }
+                }
+
+                // ここで、ゴール(gx, gy)の手前に扉を置きたい。
+                // しかし「ループして戻る」という要件なので、
+                // 「スタート」と「ゴール」が実は壁一枚（または短い距離）で隣接していて、
+                // 間に扉がある構造が望ましい。
+
+                // 強制的にループを作る:
+                // 今のゴール地点から、スタート地点に・またはスタートの隣接点に向かって掘る
+                // 壁を貫通させて道をつなげる
+
+                // スタートの隣 (2,1) または (1,2) が壁なら、そこを扉にする
+                let doorX = -1, doorY = -1;
+
+                // スタート周辺で壁の場所を探す
+                if (map[sy + 1][sx] === 1) { doorX = sx; doorY = sy + 1; }
+                else if (map[sy][sx + 1] === 1) { doorX = sx + 1; doorY = sy; }
+
+                if (doorX !== -1) {
+                    // その扉の向こう側をゴールにする
+                    let goalX = doorX + (doorX - sx);
+                    let goalY = doorY + (doorY - sy);
+
+                    // ゴール予定地が範囲内なら
+                    if (goalX > 0 && goalX < size - 1 && goalY > 0 && goalY < size - 1) {
+                        map[doorY][doorX] = 6; // 6 = Door
+                        map[goalY][goalX] = 3; // 3 = Goal
+
+                        // 既存の迷路の「行き止まり」から、このゴール地点へ道をつなげる必要がある
+                        // 一番遠い点(gx, gy)から goalX, goalY へと道を掘りつなげる
+                        this.forcePath(map, { x: gx, y: gy }, { x: goalX, y: goalY });
+                    } else {
+                        // 失敗したら普通の配置
+                        map[gy][gx] = 3;
+                        // 適当なパス上に扉を置く
+                        // ...
+                        this.simpleDoorLayout(map, sx, sy, gx, gy);
+                    }
+                } else {
+                    map[gy][gx] = 3;
+                    this.simpleDoorLayout(map, sx, sy, gx, gy);
+                }
+
+                // 鍵の配置: スタートから（扉を通らずに）一番遠い場所に置く
+                let pathWithoutDoor = this.findPath(map, { x: sx, y: sy }, { x: gx, y: gy }, true); // blockDoor=true
+                // 実際には findPath は BFS なので最短経路。
+                // 一番遠い地点を取得する関数が必要だが、簡易的に path の中点か、
+                // あるいは再度 Distance Map を作る
+
+                // startからの距離マップ（扉は壁扱い）
+                let dist = this.getDistanceMap(map, { x: sx, y: sy }, true);
+                let keyX = sx, keyY = sy, maxD = -1;
+
+                for (let y = 0; y < size; y++) {
+                    for (let x = 0; x < size; x++) {
+                        if (map[y][x] === 0 && dist[y][x] > maxD) { // 道のみ
+                            maxD = dist[y][x];
+                            keyX = x; keyY = y;
+                        }
+                    }
+                }
+                map[keyY][keyX] = 5; // 5 = Key
+
+                return map;
+            }
+
+            static simpleDoorLayout(map, sx, sy, gx, gy) {
+                // 単純にゴール手前に扉を置く
+                // ゴールの隣接マスを探す
+                const dirs = [{ x: 0, y: -1 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 1, y: 0 }];
+                for (let d of dirs) {
+                    let nx = gx + d.x;
+                    let ny = gy + d.y;
+                    if (nx >= 0 && nx < gridSize && ny >= 0 && ny < gridSize && map[ny][nx] === 0) {
+                        map[ny][nx] = 6; // Door
+                        break;
+                    }
+                }
+            }
+
+            static forcePath(map, start, end) {
+                // startからendまで直線的（またはL字）に無理やり掘る
+                let cx = start.x, cy = start.y;
+                while (cx !== end.x || cy !== end.y) {
+                    map[cy][cx] = 0;
+                    if (cx < end.x) cx++;
+                    else if (cx > end.x) cx--;
+                    else if (cy < end.y) cy++;
+                    else if (cy > end.y) cy--;
+                }
+                map[end.y][end.x] = 0;
+            }
+
+            static getDistanceMap(map, start, blockDoor = false) {
+                let d = Array(gridSize).fill(0).map(() => Array(gridSize).fill(-1));
+                let q = [start];
+                d[start.y][start.x] = 0;
+
+                while (q.length > 0) {
+                    let curr = q.shift();
+                    const dirs = [{ x: 0, y: -1 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 1, y: 0 }];
+                    for (let dir of dirs) {
+                        let nx = curr.x + dir.x;
+                        let ny = curr.y + dir.y;
+                        if (nx >= 0 && nx < gridSize && ny >= 0 && ny < gridSize) {
+                            // 1:Wall, 6:Door(if blocked)
+                            let isWall = map[ny][nx] === 1 || (blockDoor && map[ny][nx] === 6);
+                            // Start(2), Goal(3), Key(5) are walkable
+                            // Door(6) is walkable if !blockDoor
+                            if (!isWall && d[ny][nx] === -1) {
+                                d[ny][nx] = d[curr.y][curr.x] + 1;
+                                q.push({ x: nx, y: ny });
+                            }
+                        }
+                    }
+                }
+                return d;
             }
 
             static carve(map, x, y, randomness) {
@@ -439,6 +610,45 @@
                 }
             }
 
+            static findPath(map, start, goal, blockDoor = false) {
+                const q = [[start]];
+                const visited = new Set();
+                visited.add(`${start.x},${start.y}`);
+
+                // 単純BFSで一つ見つける
+                while (q.length > 0) {
+                    const path = q.shift();
+                    const curr = path[path.length - 1];
+
+                    if (curr.x === goal.x && curr.y === goal.y) return path;
+
+                    const dirs = [{ x: 0, y: -1 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 1, y: 0 }];
+                    this.shuffle(dirs); // ランダム性を持たせる
+
+                    for (const d of dirs) {
+                        const nx = curr.x + d.x;
+                        const ny = curr.y + d.y;
+                        let isWalkable = (map[ny][nx] !== 1);
+                        if (blockDoor && map[ny][nx] === 6) isWalkable = false;
+
+                        if (nx >= 0 && nx < gridSize && ny >= 0 && ny < gridSize && isWalkable) {
+                            if (!visited.has(`${nx},${ny}`)) {
+                                visited.add(`${nx},${ny}`);
+                                q.push([...path, { x: nx, y: ny }]);
+                            }
+                        }
+                    }
+                }
+                return [];
+            }
+
+            static shuffle(array) {
+                for (let i = array.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [array[i], array[j]] = [array[j], array[i]];
+                }
+            }
+
             static addLoops(map, count) {
                 let added = 0;
                 let attempts = 0;
@@ -448,7 +658,6 @@
                     let y = Math.floor(Math.random() * (gridSize - 2)) + 1;
 
                     if (map[y][x] === 1) {
-                        // 上下左右が道かチェック（壁を取り除いて道をつなげる）
                         let roads = 0;
                         if (map[y - 1][x] === 0) roads++;
                         if (map[y + 1][x] === 0) roads++;
@@ -464,13 +673,10 @@
             }
 
             static placeItemsStandard(map, start, goal, level) {
-                // 正解ルートを見つける
                 const path = this.findPath(map, start, goal);
-                if (!path) return map; // 万が一
-
-                // パス上にアイテムを配置
+                if (!path) return map;
                 let itemCount = 2 + Math.floor(level / 5);
-                if (level > 10) itemCount += 2; // LV2は少し多く
+                if (level > 10) itemCount += 2;
 
                 const candidates = path.slice(1, path.length - 1);
                 this.shuffle(candidates);
@@ -608,70 +814,36 @@
                 return cells;
             }
 
-            static findPath(map, start, goal) {
-                const q = [[start]];
-                const visited = new Set();
-                visited.add(`${start.x},${start.y}`);
+            // Duplicate methods removed
 
-                // 単純BFSで一つ見つける
-                while (q.length > 0) {
-                    const path = q.shift();
-                    const curr = path[path.length - 1];
-
-                    if (curr.x === goal.x && curr.y === goal.y) return path;
-
-                    const dirs = [{ x: 0, y: -1 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 1, y: 0 }];
-                    this.shuffle(dirs); // ランダム性を持たせる
-
-                    for (const d of dirs) {
-                        const nx = curr.x + d.x;
-                        const ny = curr.y + d.y;
-                        if (nx >= 0 && nx < gridSize && ny >= 0 && ny < gridSize && map[ny][nx] !== 1) {
-                            if (!visited.has(`${nx},${ny}`)) {
-                                visited.add(`${nx},${ny}`);
-                                q.push([...path, { x: nx, y: ny }]);
-                            }
-                        }
-                    }
-                }
-                return [];
-            }
-
-            static shuffle(array) {
-                for (let i = array.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [array[i], array[j]] = [array[j], array[i]];
-                }
-            }
-        }
 
         /**
          * 初期化
          */
         window.onload = () => {
-            canvas = document.getElementById('gameCanvas');
-            ctx = canvas.getContext('2d');
+                canvas = document.getElementById('gameCanvas');
+                ctx = canvas.getContext('2d');
 
-            canvas.addEventListener('mousedown', startDraw);
-            canvas.addEventListener('mousemove', drawing);
-            canvas.addEventListener('mouseup', endDraw);
-            canvas.addEventListener('mouseout', endDraw);
-            canvas.addEventListener('touchstart', startDraw, { passive: false });
-            canvas.addEventListener('touchmove', drawing, { passive: false });
-            canvas.addEventListener('touchend', endDraw);
+                canvas.addEventListener('mousedown', startDraw);
+                canvas.addEventListener('mousemove', drawing);
+                canvas.addEventListener('mouseup', endDraw);
+                canvas.addEventListener('mouseout', endDraw);
+                canvas.addEventListener('touchstart', startDraw, { passive: false });
+                canvas.addEventListener('touchmove', drawing, { passive: false });
+                canvas.addEventListener('touchend', endDraw);
 
-            window.addEventListener('keydown', (e) => {
-                if (currentMode === 'B' && !isGameClear) {
-                    if (e.key === 'ArrowUp') handleDPad('UP');
-                    if (e.key === 'ArrowDown') handleDPad('DOWN');
-                    if (e.key === 'ArrowLeft') handleDPad('LEFT');
-                    if (e.key === 'ArrowRight') handleDPad('RIGHT');
-                }
-            });
+                window.addEventListener('keydown', (e) => {
+                    if (currentMode === 'B' && !isGameClear) {
+                        if (e.key === 'ArrowUp') handleDPad('UP');
+                        if (e.key === 'ArrowDown') handleDPad('DOWN');
+                        if (e.key === 'ArrowLeft') handleDPad('LEFT');
+                        if (e.key === 'ArrowRight') handleDPad('RIGHT');
+                    }
+                });
 
-            resizeCanvas();
-            window.addEventListener('resize', resizeCanvas);
-        };
+                resizeCanvas();
+                window.addEventListener('resize', resizeCanvas);
+            };
 
         function resizeCanvas() {
             // UIの高さを考慮してリサイズ
@@ -739,6 +911,15 @@
                 } else {
                     status.style.color = "#555";
                 }
+            } else if (levelMap.flat().includes(5) || levelMap.flat().includes(6) || currentLevel >= 31) {
+                // LV4: Key
+                if (hasKey) {
+                    status.textContent = `Lv.${currentLevel} かぎ🔑をもっているよ！ゴールへ！`;
+                    status.style.color = "blue";
+                } else {
+                    status.textContent = `Lv.${currentLevel} かぎ🔑をさがしてね`;
+                    status.style.color = "#555";
+                }
             } else {
                 const remaining = targetItemCount - collected;
                 status.textContent = `Lv.${currentLevel} 🍎あと ${remaining}こ！`;
@@ -783,6 +964,9 @@
             historyStack = [];
             visitedTiles = [];
             visitedTiles.push({ x: playerPos.x, y: playerPos.y });
+
+            hasKey = false;
+
 
             draw();
         }
@@ -851,6 +1035,12 @@
                             drawEmoji('🍎', px, py, 0.4);
                             ctx.globalAlpha = 1.0;
                         }
+                    }
+                    if (cell === 5) { // Key
+                        drawEmoji('🔑', px, py, 0.7);
+                    }
+                    if (cell === 6) { // Door
+                        drawEmoji('🚪', px, py, 0.8);
                     }
                 }
             }
@@ -975,6 +1165,31 @@
 
             if (nextX < 0 || nextX >= gridSize || nextY < 0 || nextY >= gridSize) return;
             if (levelMap[nextY][nextX] === 1) return;
+
+            // Key (5)
+            if (levelMap[nextY][nextX] === 5) {
+                hasKey = true;
+                levelMap[nextY][nextX] = 0; // 取得したら道になる
+                const status = document.getElementById('status-text');
+                status.textContent = 'かぎをゲットしたよ！';
+                status.style.color = 'orange';
+            }
+
+            // Door (6)
+            if (levelMap[nextY][nextX] === 6) {
+                if (hasKey) {
+                    levelMap[nextY][nextX] = 0; // 開いたら道になる
+                    const status = document.getElementById('status-text');
+                    status.textContent = 'ドアがあいた！';
+                    status.style.color = 'blue';
+                } else {
+                    const status = document.getElementById('status-text');
+                    status.textContent = 'かぎがないとあかないよ！';
+                    status.style.color = 'red';
+                    // 移動キャンセル
+                    return;
+                }
+            }
 
             const isVisited = visitedTiles.some(t => t.x === nextX && t.y === nextY);
             if (isVisited) return;
