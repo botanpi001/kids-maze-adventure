@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -10,7 +11,8 @@
             margin: 0;
             padding: 0;
             font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
-            background-color: #FFF9C4; /* パステルイエロー */
+            background-color: #FFF9C4;
+            /* パステルイエロー */
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -30,14 +32,16 @@
         }
 
         h1 {
-            color: #FF7043; /* ポップなオレンジ */
+            color: #FF7043;
+            /* ポップなオレンジ */
             font-size: 2.5rem;
             margin-bottom: 30px;
             text-shadow: 2px 2px 0px #FFF;
         }
 
         .mode-btn {
-            background-color: #4DB6AC; /* パステルグリーン */
+            background-color: #4DB6AC;
+            /* パステルグリーン */
             color: white;
             border: none;
             border-radius: 20px;
@@ -76,9 +80,10 @@
         canvas {
             background-color: #FFFFFF;
             border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
             margin: 10px;
-            touch-action: none; /* ブラウザのスクロールなどを無効化 */
+            touch-action: none;
+            /* ブラウザのスクロールなどを無効化 */
         }
 
         /* UIパネル */
@@ -110,7 +115,8 @@
 
         /* D-Pad controls for Mode B */
         #d-pad {
-            display: none; /* デフォルトは非表示 */
+            display: none;
+            /* デフォルトは非表示 */
             grid-template-columns: 1fr 1fr 1fr;
             grid-template-rows: 1fr 1fr;
             gap: 10px;
@@ -154,7 +160,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.5);
+            background: rgba(0, 0, 0, 0.5);
             display: none;
             flex-direction: column;
             align-items: center;
@@ -175,14 +181,22 @@
         }
 
         @keyframes popUp {
-            0% { transform: scale(0); }
-            100% { transform: scale(1); }
+            0% {
+                transform: scale(0);
+            }
+
+            100% {
+                transform: scale(1);
+            }
         }
 
         /* カンタンなリセットCSS */
-        * { box-sizing: border-box; }
+        * {
+            box-sizing: border-box;
+        }
     </style>
 </head>
+
 <body>
 
     <!-- メニュー画面 -->
@@ -217,10 +231,10 @@
                 <button class="d-btn" onclick="handleDPad('RIGHT')">➡️</button>
             </div>
         </div>
-        
+
         <!-- モードB用 Undoボタン (D-Padの下に配置) -->
         <div id="d-pad-sub" style="margin-top: 15px; display: none;">
-             <button id="undo-btn" class="d-btn" onclick="handleUndo()">１つもどる</button>
+            <button id="undo-btn" class="d-btn" onclick="handleUndo()">１つもどる</button>
         </div>
     </div>
 
@@ -232,515 +246,631 @@
         </div>
     </div>
 
-<script>
-    /**
-     * 定数・設定
-     */
-    const TILE_SIZE = 40; // グリッドの基本サイズ（リサイズ時に再計算）
-    const GRID_SIZE = 10; // 10x10
-    // マップデータ: 0=道, 1=壁, 2=スタート, 3=ゴール, 4=アイテム(りんご)
-    const LEVEL_MAP = [
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-        [1, 2, 0, 0, 1, 0, 0, 4, 0, 1],
-        [1, 0, 1, 0, 1, 0, 1, 1, 0, 1],
-        [1, 0, 1, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 1, 1, 1, 1, 1, 1, 0, 1],
-        [1, 0, 0, 4, 0, 0, 0, 1, 0, 1],
-        [1, 1, 1, 1, 0, 1, 0, 1, 0, 1],
-        [1, 4, 0, 0, 0, 1, 0, 0, 0, 1],
-        [1, 0, 1, 1, 0, 1, 1, 1, 3, 1],
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-    ];
+    <script>
+        /**
+         * 定数・設定
+         */
+        const TILE_SIZE = 40; // グリッドの基本サイズ（リサイズ時に再計算）
+        const GRID_SIZE = 10; // 10x10
+        const TOTAL_LEVELS = 30;
 
-    /**
-     * 変数
-     */
-    let currentMode = null; // 'A' or 'B'
-    let canvas, ctx;
-    let tileSize = 0;
-    
-    // ゲーム状態
-    let playerPos = { x: 1, y: 1 };
-    let collectedItems = 0;
-    let totalItems = 0;
-    let isGameClear = false;
-    
-    // モードA用
-    let isDrawing = false;
-    let drawPath = []; // {x, y} screen coordinates
+        /**
+         * 変数
+         */
+        let currentMode = null; // 'A' or 'B'
+        let currentLevel = 1;
+        let canvas, ctx;
+        let tileSize = 0;
 
-    // モードB用
-    let historyStack = []; // 履歴（Undo用）
-    let visitedTiles = []; // {x, y} grid coordinates
+        // ゲーム状態
+        let levelMap = []; // 現在のマップデータ
+        let playerPos = { x: 1, y: 1 };
+        let collectedItems = 0;
+        let totalItems = 0;
+        let isGameClear = false;
 
-    // エフェクト用
-    let fireworks = [];
+        // モードA用
+        let isDrawing = false;
+        let drawPath = []; // {x, y} screen coordinates
 
-    /**
-     * 初期化
-     */
-    window.onload = () => {
-        canvas = document.getElementById('gameCanvas');
-        ctx = canvas.getContext('2d');
-        
-        // イベントリスナー (Canvas)
-        canvas.addEventListener('mousedown', startDraw);
-        canvas.addEventListener('mousemove', drawing);
-        canvas.addEventListener('mouseup', endDraw);
-        canvas.addEventListener('touchstart', startDraw, {passive: false});
-        canvas.addEventListener('touchmove', drawing, {passive: false});
-        canvas.addEventListener('touchend', endDraw);
+        // モードB用
+        let historyStack = []; // 履歴（Undo用）
+        let visitedTiles = []; // {x, y} grid coordinates
 
-        // キーボード操作（デバッグ用・PC用）
-        window.addEventListener('keydown', (e) => {
-            if (currentMode === 'B' && !isGameClear) {
-                if (e.key === 'ArrowUp') handleDPad('UP');
-                if (e.key === 'ArrowDown') handleDPad('DOWN');
-                if (e.key === 'ArrowLeft') handleDPad('LEFT');
-                if (e.key === 'ArrowRight') handleDPad('RIGHT');
-            }
-        });
+        // エフェクト用
+        let fireworks = [];
 
-        resizeCanvas();
-        window.addEventListener('resize', resizeCanvas);
-        
-        // アイテム総数をカウント
-        countItems();
-    };
+        /**
+         * 迷路生成クラス
+         */
+        class MazeGenerator {
+            static generate(level) {
+                // 1. 全て壁で埋める
+                let map = Array(GRID_SIZE).fill(0).map(() => Array(GRID_SIZE).fill(1));
 
-    function countItems() {
-        totalItems = 0;
-        for(let y=0; y<GRID_SIZE; y++) {
-            for(let x=0; x<GRID_SIZE; x++) {
-                if (LEVEL_MAP[y][x] === 4) totalItems++;
-            }
-        }
-    }
+                // 2. 穴掘り法などで迷路生成 (奇数座標を道にする)
+                // スタート地点 (1, 1)
+                this.carve(map, 1, 1);
 
-    function resizeCanvas() {
-        // 画面幅に合わせてキャンバスサイズを調整
-        const maxSize = Math.min(window.innerWidth - 40, window.innerHeight - 300); // UI分を引く
-        const size = Math.floor(maxSize / GRID_SIZE) * GRID_SIZE;
-        canvas.width = size;
-        canvas.height = size;
-        tileSize = size / GRID_SIZE;
-        draw();
-    }
-
-    /**
-     * ゲームフロー制御
-     */
-    function startGame(mode) {
-        currentMode = mode;
-        document.getElementById('menu').style.display = 'none';
-        document.getElementById('game-container').style.display = 'flex';
-        
-        // モード別UI切り替え
-        const dPad = document.getElementById('d-pad');
-        const dPadSub = document.getElementById('d-pad-sub');
-        if (mode === 'B') {
-            dPad.style.display = 'grid';
-            dPadSub.style.display = 'block';
-            document.getElementById('status-text').textContent = '🍎をあつめてゴールへ！';
-        } else {
-            dPad.style.display = 'none';
-            dPadSub.style.display = 'none';
-            document.getElementById('status-text').textContent = 'ゆびでなぞってね！';
-        }
-
-        resetGame();
-        loop();
-    }
-
-    function goHome() {
-        document.getElementById('menu').style.display = 'flex';
-        document.getElementById('game-container').style.display = 'none';
-        document.getElementById('message-overlay').style.display = 'none';
-        currentMode = null;
-    }
-
-    function resetGame() {
-        // プレイヤー位置をスタート地点へ
-        for(let y=0; y<GRID_SIZE; y++) {
-            for(let x=0; x<GRID_SIZE; x++) {
-                if(LEVEL_MAP[y][x] === 2) {
-                    playerPos = { x, y };
+                // 3. スタートとゴール配置
+                map[1][1] = 2; // Start
+                // ゴールは右下付近の道を探す
+                let gx = GRID_SIZE - 2;
+                let gy = GRID_SIZE - 2;
+                while (map[gy][gx] === 1) {
+                    // 右下が壁なら少しずらす（穴掘り法なら基本右下まで掘れるはずだが念のため）
+                    if (gx > 1) gx--;
+                    else { gx = GRID_SIZE - 2; gy--; }
                 }
-            }
-        }
+                map[gy][gx] = 3; // Goal
 
-        collectedItems = 0;
-        isGameClear = false;
-        fireworks = [];
+                // 4. 正解ルートを探す (BFS)
+                const path = this.findPath(map, { x: 1, y: 1 }, { x: gx, y: gy });
 
-        // モードAリセット
-        isDrawing = false;
-        drawPath = [];
-        // スタート地点を中心にパスの初期点とする
-        const cx = playerPos.x * tileSize + tileSize/2;
-        const cy = playerPos.y * tileSize + tileSize/2;
-        drawPath.push({x: cx, y: cy});
-
-        // モードBリセット
-        historyStack = [];
-        visitedTiles = []; // 現在位置はまだvisitedに入れない（移動確定後に入れるか、スタート済みとするか）
-        // スタート地点は訪問済みにする
-        visitedTiles.push({x: playerPos.x, y: playerPos.y});
-    }
-
-    /**
-     * メインループ
-     */
-    function loop() {
-        if (!currentMode) return;
-        
-        update();
-        draw();
-        
-        requestAnimationFrame(loop);
-    }
-
-    function update() {
-        if (isGameClear) {
-            // 花火更新
-            if (Math.random() < 0.05) createFirework();
-            updateFireworks();
-        }
-    }
-
-    /**
-     * 描画システム
-     */
-    function draw() {
-        if (!ctx || tileSize === 0) return;
-
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // 1. マップ描画
-        for (let y = 0; y < GRID_SIZE; y++) {
-            for (let x = 0; x < GRID_SIZE; x++) {
-                const cell = LEVEL_MAP[y][x];
-                const px = x * tileSize;
-                const py = y * tileSize;
-
-                // 床
-                ctx.fillStyle = '#FFF8E1';
-                if ((x+y)%2 === 0) ctx.fillStyle = '#FFECB3'; // チェック柄
-                ctx.fillRect(px, py, tileSize, tileSize);
-
-                // 壁
-                if (cell === 1) {
-                    ctx.fillStyle = '#8D6E63'; // 茶色いレンガ風
-                    ctx.fillRect(px+2, py+2, tileSize-4, tileSize-4);
-                    // 🐶や🧱の絵文字を描いてもいいが、壁はシンプルに色ブロック＋模様でも可
-                    ctx.font = `${tileSize*0.6}px Arial`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText('🧱', px + tileSize/2, py + tileSize/2);
-                }
-                
-                // スタート
-                if (cell === 2) {
-                    ctx.font = `${tileSize*0.6}px Arial`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText('🏠', px + tileSize/2, py + tileSize/2);
-                }
-
-                // ゴール
-                if (cell === 3) {
-                    ctx.font = `${tileSize*0.6}px Arial`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText('🚩', px + tileSize/2, py + tileSize/2);
-                }
-
-                // アイテム（モードAでは描画だけで判定なし、モードBでは取得済みかチェック）
-                if (cell === 4) {
-                    // モードBですでに取得済みの場合は描画しない
-                    let isCollected = false;
-                    if (currentMode === 'B') {
-                       // 簡易的に履歴からチェックするのではなく、Mapデータを書き換えていないので、
-                       // 取得済みリストを確認する必要がある。
-                       // 今回は historyStack に保存された collected フラグ等を見るには複雑なので、
-                       // 座標リストで管理するか、単純に描画時にチェック。
-                       // 修正: 取得したアイテムの座標を保持する配列を作るのがベターだが、
-                       // ここでは visitedTiles に入っているマスにあるアイテムは取得済みとみなす（通過＝取得）
-                       if (visitedTiles.some(t => t.x === x && t.y === y)) {
-                           isCollected = true;
-                       }
-                    } else {
-                        // モードAならアイテムは飾り（要件にはAでのアイテム取得はないが、あっても良い。今回は単なる飾り）
+                // 5. アイテム配置 (Mode Bの難易度調整)
+                // 確実にクリアできるように「正解ルート上」にだけアイテムを置く
+                // レベルに応じてアイテム数を増やす（最大5個くらい）
+                if (path && path.length > 2) {
+                    let itemCount = 2 + Math.floor(level / 10);
+                    // パスの中からランダムに選ぶ（スタート/ゴール除く）
+                    const candidates = path.slice(1, path.length - 1);
+                    // シャッフル
+                    for (let i = candidates.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
                     }
 
-                    if (!isCollected) {
-                        ctx.font = `${tileSize*0.6}px Arial`;
+                    for (let k = 0; k < Math.min(itemCount, candidates.length); k++) {
+                        map[candidates[k].y][candidates[k].x] = 4;
+                    }
+                }
+
+                return map;
+            }
+
+            static carve(map, x, y) {
+                const directions = [
+                    { dx: 0, dy: -2 }, // Up
+                    { dx: 0, dy: 2 },  // Down
+                    { dx: -2, dy: 0 }, // Left
+                    { dx: 2, dy: 0 }   // Right
+                ];
+
+                // ランダムシャッフル
+                for (let i = directions.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [directions[i], directions[j]] = [directions[j], directions[i]];
+                }
+
+                map[y][x] = 0; // 道にする
+
+                for (const dir of directions) {
+                    const nx = x + dir.dx;
+                    const ny = y + dir.dy;
+
+                    // 範囲内かつ壁なら掘り進む
+                    if (nx > 0 && nx < GRID_SIZE - 1 && ny > 0 && ny < GRID_SIZE - 1 && map[ny][nx] === 1) {
+                        map[y + dir.dy / 2][x + dir.dx / 2] = 0; // 中間の壁も道にする
+                        this.carve(map, nx, ny);
+                    }
+                }
+            }
+
+            static findPath(map, start, goal) {
+                const q = [[start]];
+                const visited = new Set();
+                visited.add(`${start.x},${start.y}`);
+
+                while (q.length > 0) {
+                    const path = q.shift();
+                    const curr = path[path.length - 1];
+
+                    if (curr.x === goal.x && curr.y === goal.y) return path;
+
+                    const dirs = [{ x: 0, y: -1 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 1, y: 0 }];
+                    for (const d of dirs) {
+                        const nx = curr.x + d.x;
+                        const ny = curr.y + d.y;
+                        if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE && map[ny][nx] !== 1) {
+                            if (!visited.has(`${nx},${ny}`)) {
+                                visited.add(`${nx},${ny}`);
+                                q.push([...path, { x: nx, y: ny }]);
+                            }
+                        }
+                    }
+                }
+                return null;
+            }
+        }
+
+        /**
+         * 初期化
+         */
+        window.onload = () => {
+            canvas = document.getElementById('gameCanvas');
+            ctx = canvas.getContext('2d');
+
+            // イベントリスナー (Canvas)
+            canvas.addEventListener('mousedown', startDraw);
+            canvas.addEventListener('mousemove', drawing);
+            canvas.addEventListener('mouseup', endDraw);
+            canvas.addEventListener('mouseout', endDraw); // 画面外に出た時も終了
+            canvas.addEventListener('touchstart', startDraw, { passive: false });
+            canvas.addEventListener('touchmove', drawing, { passive: false });
+            canvas.addEventListener('touchend', endDraw);
+
+            // キーボード操作（デバッグ用・PC用）
+            window.addEventListener('keydown', (e) => {
+                if (currentMode === 'B' && !isGameClear) {
+                    if (e.key === 'ArrowUp') handleDPad('UP');
+                    if (e.key === 'ArrowDown') handleDPad('DOWN');
+                    if (e.key === 'ArrowLeft') handleDPad('LEFT');
+                    if (e.key === 'ArrowRight') handleDPad('RIGHT');
+                }
+            });
+
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+        };
+
+        function resizeCanvas() {
+            // 画面幅に合わせてキャンバスサイズを調整
+            const maxSize = Math.min(window.innerWidth - 40, window.innerHeight - 300); // UI分を引く
+            const size = Math.floor(maxSize / GRID_SIZE) * GRID_SIZE;
+            canvas.width = size;
+            canvas.height = size;
+            tileSize = size / GRID_SIZE;
+            draw();
+        }
+
+        /**
+         * ゲームフロー制御
+         */
+        function startGame(mode, level = 1) {
+            currentMode = mode;
+            currentLevel = level;
+
+            document.getElementById('menu').style.display = 'none';
+            document.getElementById('game-container').style.display = 'flex';
+            document.getElementById('message-overlay').style.display = 'none'; // 非表示確実に
+
+            // モード別UI切り替え
+            const dPad = document.getElementById('d-pad');
+            const dPadSub = document.getElementById('d-pad-sub');
+            const statusText = document.getElementById('status-text');
+
+            if (mode === 'B') {
+                dPad.style.display = 'grid';
+                dPadSub.style.display = 'block';
+                statusText.textContent = `Lv.${currentLevel} 🍎をあつめてゴールへ！`;
+            } else {
+                dPad.style.display = 'none';
+                dPadSub.style.display = 'none';
+                statusText.textContent = 'ゆびでなぞってね！';
+            }
+
+            // マップ生成
+            levelMap = MazeGenerator.generate(currentLevel);
+            resetGame();
+            loop();
+        }
+
+        function goHome() {
+            document.getElementById('menu').style.display = 'flex';
+            document.getElementById('game-container').style.display = 'none';
+            document.getElementById('message-overlay').style.display = 'none';
+            currentMode = null;
+            cancelAnimationFrame(loopId); // ループ停止
+        }
+
+        function resetGame() {
+            // プレイヤー位置をスタート地点へ
+            for (let y = 0; y < GRID_SIZE; y++) {
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    if (levelMap[y][x] === 2) {
+                        playerPos = { x, y };
+                    }
+                }
+            }
+
+            countItems();
+            collectedItems = 0;
+            isGameClear = false;
+            fireworks = [];
+
+            // モードAリセット
+            isDrawing = false;
+            drawPath = [];
+            // スタート地点を中心にパスの初期点とする
+            const cx = playerPos.x * tileSize + tileSize / 2;
+            const cy = playerPos.y * tileSize + tileSize / 2;
+            drawPath.push({ x: cx, y: cy });
+
+            // モードBリセット
+            historyStack = [];
+            visitedTiles = [];
+            visitedTiles.push({ x: playerPos.x, y: playerPos.y });
+
+            draw();
+        }
+
+        function countItems() {
+            totalItems = 0;
+            for (let y = 0; y < GRID_SIZE; y++) {
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    if (levelMap[y][x] === 4) totalItems++;
+                }
+            }
+        }
+
+        let loopId;
+        /**
+         * メインループ
+         */
+        function loop() {
+            if (!currentMode) return;
+
+            update();
+            draw();
+
+            loopId = requestAnimationFrame(loop);
+        }
+
+        function update() {
+            if (isGameClear) {
+                // 花火更新
+                if (Math.random() < 0.1) createFirework(); // 増やす
+                updateFireworks();
+            }
+        }
+
+        /**
+         * 描画システム
+         */
+        function draw() {
+            if (!ctx || tileSize === 0 || !levelMap.length) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 1. マップ描画
+            for (let y = 0; y < GRID_SIZE; y++) {
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    const cell = levelMap[y][x];
+                    const px = x * tileSize;
+                    const py = y * tileSize;
+
+                    // 床
+                    ctx.fillStyle = '#FFF8E1';
+                    if ((x + y) % 2 === 0) ctx.fillStyle = '#FFECB3'; // チェック柄
+                    ctx.fillRect(px, py, tileSize, tileSize);
+
+                    // 壁
+                    if (cell === 1) {
+                        ctx.fillStyle = '#8D6E63'; // 茶色いレンガ風
+                        ctx.fillRect(px + 2, py + 2, tileSize - 4, tileSize - 4);
+                        // 壁の装飾
+                        ctx.fillStyle = '#6D4C41';
+                        ctx.fillRect(px + 5, py + 8, tileSize - 10, tileSize / 4);
+                        ctx.fillRect(px + 5, py + tileSize / 2 + 4, tileSize - 10, tileSize / 4);
+                    }
+
+                    // スタート
+                    if (cell === 2) {
+                        ctx.font = `${tileSize * 0.6}px Arial`;
                         ctx.textAlign = 'center';
                         ctx.textBaseline = 'middle';
-                        ctx.fillText('🍎', px + tileSize/2, py + tileSize/2);
+                        ctx.fillText('🏠', px + tileSize / 2, py + tileSize / 2);
                     }
+
+                    // ゴール
+                    if (cell === 3) {
+                        ctx.font = `${tileSize * 0.6}px Arial`;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText('🚩', px + tileSize / 2, py + tileSize / 2);
+                    }
+
+                    // アイテム
+                    if (cell === 4) {
+                        let isCollected = false;
+                        if (currentMode === 'B') {
+                            if (visitedTiles.some(t => t.x === x && t.y === y)) {
+                                isCollected = true;
+                            }
+                        }
+                        // Mode Aでも表示する（飾り）
+
+                        if (!isCollected) {
+                            ctx.font = `${tileSize * 0.6}px Arial`;
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText('🍎', px + tileSize / 2, py + tileSize / 2);
+                        }
+                    }
+                }
+            }
+
+            // 2. モードB固有描画：足跡
+            if (currentMode === 'B') {
+                for (const tile of visitedTiles) {
+                    // 現在地以外を描画
+                    if (tile.x === playerPos.x && tile.y === playerPos.y) continue;
+
+                    // 青い半透明タイル
+                    ctx.fillStyle = 'rgba(33, 150, 243, 0.3)';
+                    ctx.fillRect(tile.x * tileSize + 2, tile.y * tileSize + 2, tileSize - 4, tileSize - 4);
+
+                    // 足跡マーク
+                    ctx.font = `${tileSize * 0.4}px Arial`;
+                    ctx.fillStyle = '#1565C0'; // 濃い青
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('🐾', tile.x * tileSize + tileSize / 2, tile.y * tileSize + tileSize / 2);
+                }
+            }
+
+            // 3. モードA固有描画：線
+            if (currentMode === 'A' && drawPath.length > 0) {
+                ctx.beginPath();
+                ctx.lineWidth = tileSize / 3; // 太く
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.strokeStyle = 'rgba(255, 112, 67, 0.8)'; // オレンジ半透明
+                ctx.moveTo(drawPath[0].x, drawPath[0].y);
+                for (let i = 1; i < drawPath.length; i++) {
+                    ctx.lineTo(drawPath[i].x, drawPath[i].y);
+                }
+                ctx.stroke();
+
+                // 先頭にペン先マーク
+                const last = drawPath[drawPath.length - 1];
+                ctx.font = `${tileSize * 0.6}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('✏️', last.x, last.y - tileSize / 2); // 少し上に
+            }
+
+            // 4. プレイヤー描画（モードBのみ）
+            if (currentMode === 'B') {
+                const px = playerPos.x * tileSize;
+                const py = playerPos.y * tileSize;
+                ctx.font = `${tileSize * 0.7}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('🐶', px + tileSize / 2, py + tileSize / 2);
+            }
+
+            // 5. 花火
+            for (const fw of fireworks) {
+                ctx.beginPath();
+                ctx.fillStyle = fw.color;
+                ctx.arc(fw.x, fw.y, fw.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        /**
+         * 入力処理 - モードA (Mouse/Touch)
+         */
+        function getPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            let clientX = e.clientX;
+            let clientY = e.clientY;
+            if (e.changedTouches && e.changedTouches.length > 0) {
+                clientX = e.changedTouches[0].clientX;
+                clientY = e.changedTouches[0].clientY;
+            }
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
+        }
+
+        function startDraw(e) {
+            if (currentMode !== 'A' || isGameClear) return;
+            e.preventDefault();
+
+            isDrawing = true;
+            addPoint(getPos(e));
+        }
+
+        function drawing(e) {
+            if (!isDrawing || currentMode !== 'A' || isGameClear) return;
+            e.preventDefault();
+            addPoint(getPos(e));
+        }
+
+        function endDraw(e) {
+            isDrawing = false;
+        }
+
+        function addPoint(pos) {
+            const gridX = Math.floor(pos.x / tileSize);
+            const gridY = Math.floor(pos.y / tileSize);
+
+            // 範囲外チェック
+            if (gridX < 0 || gridX >= GRID_SIZE || gridY < 0 || gridY >= GRID_SIZE) return;
+
+            // 壁チェック
+            if (levelMap[gridY][gridX] === 1) {
+                isDrawing = false;
+                return;
+            }
+
+            drawPath.push(pos);
+
+            // ゴール判定
+            if (levelMap[gridY][gridX] === 3) {
+                gameLevelComplete();
+            }
+        }
+
+        /**
+         * 入力処理 - モードB (D-Pad)
+         */
+        function handleDPad(dir) {
+            if (currentMode !== 'B' || isGameClear) return;
+
+            let dx = 0;
+            let dy = 0;
+            if (dir === 'UP') dy = -1;
+            if (dir === 'DOWN') dy = 1;
+            if (dir === 'LEFT') dx = -1;
+            if (dir === 'RIGHT') dx = 1;
+
+            const nextX = playerPos.x + dx;
+            const nextY = playerPos.y + dy;
+
+            if (nextX < 0 || nextX >= GRID_SIZE || nextY < 0 || nextY >= GRID_SIZE) return;
+            if (levelMap[nextY][nextX] === 1) return;
+
+            const isVisited = visitedTiles.some(t => t.x === nextX && t.y === nextY);
+            if (isVisited) {
+                // 戻れないエフェクト（ぷるっと震えるなど）入れたいが今回は省略
+                return;
+            }
+
+            historyStack.push({
+                pos: { ...playerPos },
+                visitedCount: visitedTiles.length
+            });
+
+            playerPos = { x: nextX, y: nextY };
+            visitedTiles.push({ x: nextX, y: nextY });
+
+            if (levelMap[nextY][nextX] === 3) {
+                checkWinConditionB();
+            }
+        }
+
+        function handleUndo() {
+            if (currentMode !== 'B' || isGameClear) return;
+            if (historyStack.length === 0) return;
+
+            const lastState = historyStack.pop();
+            playerPos = lastState.pos;
+            visitedTiles.pop();
+            draw();
+        }
+
+        function checkWinConditionB() {
+            let collectedCount = 0;
+            for (const tile of visitedTiles) {
+                if (levelMap[tile.y][tile.x] === 4) {
+                    collectedCount++;
+                }
+            }
+
+            if (collectedCount >= totalItems) {
+                gameLevelComplete();
+            } else {
+                const status = document.getElementById('status-text');
+                const remaining = totalItems - collectedCount;
+                status.textContent = `あと ${remaining}こ！`;
+                // すぐ戻す
+                setTimeout(() => {
+                    if (!isGameClear) status.textContent = `Lv.${currentLevel} 🍎をあつめてゴールへ！`;
+                }, 1500);
+            }
+        }
+
+        function gameLevelComplete() {
+            if (isGameClear) return;
+            isGameClear = true;
+            isDrawing = false;
+
+            const overlay = document.getElementById('message-overlay');
+            overlay.style.display = 'flex';
+
+            // メッセージ内容更新
+            const msgBox = overlay.querySelector('.message-box');
+            msgBox.innerHTML = `
+            <div>🎉 Level ${currentLevel} クリア！ 🎉</div>
+            ${currentLevel < TOTAL_LEVELS ?
+                    '<button onclick="nextLevel()" style="background:#fff; color:orange; border:none; padding:10px 20px; font-size:1.5rem; border-radius:10px; margin-top:20px; cursor:pointer;">つぎへ ➡</button>' :
+                    '<div style="font-size:1.2rem; margin-top:10px;">ぜんぶクリア！おめでとう！🏆</div><div style="font-size:1rem; margin-top:10px;">タッチしてホームへ</div>'}
+        `;
+
+            // 最後以外の時はクリックでホームに戻らないように、イベント伝播を止める工夫が必要だが
+            // シンプルにオーバーレイのonclickは「全クリ時」または「次へボタン以外をクリック時」にホームに戻るようにする
+            // ここでは nextLevel() を呼ぶボタンを作ったので、オーバーレイ全体のonclickイベントと競合しないようにする。
+            // -> nextLevel()内で stopPropagation する。
+
+            // 花火連発
+            for (let i = 0; i < 50; i++) createFirework();
+        }
+
+        // グローバル関数に追加（HTMLから呼ぶため）
+        window.nextLevel = function (event) {
+            if (event) event.stopPropagation(); // 親のgoHome発火を防ぐ
+            if (currentLevel < TOTAL_LEVELS) {
+                startGame(currentMode, currentLevel + 1);
+            } else {
+                goHome();
+            }
+        };
+
+        // オーバーレイクリック時の挙動修正
+        // message-overlayのonclick="goHome()"を削除し、動的に制御したほうが安全だが、
+        // 既存HTMLを生かすなら、goHome側で制御する。
+        // 今回はHTML側を変更できない（replace_file_contentの制限）ので、
+        // JSでイベントを上書きする。
+        setTimeout(() => {
+            const overlay = document.getElementById('message-overlay');
+            overlay.onclick = (e) => {
+                // ボタンが押された場合は無視（バブリングで来るけど念のため）
+                if (e.target.tagName === 'BUTTON') return;
+                // 全クリまたは、次へボタンがない場所をクリックしたらHomeへ
+                if (currentLevel >= TOTAL_LEVELS) {
+                    goHome();
+                }
+                // まだ続く場合は、Homeに戻るか迷うが…
+                // 4歳児が誤って閉じてしまうのを防ぐため、次へボタンがあるときはHomeに戻らないようにする？
+                // いや、やめたいかもしれない。
+                // 動作を明確にするため、「ホームへ」ボタンをクリア画面にも出すのがベストだが、
+                // 既存UI維持なら、「オーバーレイタップ」＝「次へ」または「ホーム（全クリ時）」が直感的。
+                if (currentLevel < TOTAL_LEVELS) {
+                    startGame(currentMode, currentLevel + 1);
+                }
+            };
+        }, 100);
+
+        /**
+         * 花火エフェクト
+         */
+        function createFirework() {
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height;
+            const color = `hsl(${Math.random() * 360}, 100%, 70%)`;
+            for (let i = 0; i < 20; i++) {
+                fireworks.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 10,
+                    vy: (Math.random() - 0.5) * 10,
+                    size: Math.random() * 5 + 2,
+                    color: color,
+                    life: 1.0
+                });
+            }
+        }
+
+        function updateFireworks() {
+            for (let i = fireworks.length - 1; i >= 0; i--) {
+                const p = fireworks[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.2; // gravity
+                p.life -= 0.02;
+                p.size *= 0.95;
+
+                if (p.life <= 0) {
+                    fireworks.splice(i, 1);
                 }
             }
         }
 
-        // 2. モードB固有描画：足跡
-        if (currentMode === 'B') {
-            ctx.fillStyle = 'rgba(100, 181, 246, 0.5)'; // 青っぽい半透明
-            for (const tile of visitedTiles) {
-                // 現在地以外を描画（現在地にはプレイヤーがいる）
-                if (tile.x === playerPos.x && tile.y === playerPos.y) continue;
-                
-                ctx.fillRect(tile.x * tileSize + 5, tile.y * tileSize + 5, tileSize - 10, tileSize - 10);
-                
-                // 足跡マーク
-                ctx.font = `${tileSize*0.4}px Arial`;
-                ctx.fillStyle = '#fff';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText('🐾', tile.x * tileSize + tileSize/2, tile.y * tileSize + tileSize/2);
-            }
-        }
-
-        // 3. モードA固有描画：線
-        if (currentMode === 'A' && drawPath.length > 0) {
-            ctx.beginPath();
-            ctx.lineWidth = tileSize / 4;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            ctx.strokeStyle = '#FF7043';
-            ctx.moveTo(drawPath[0].x, drawPath[0].y);
-            for (let i = 1; i < drawPath.length; i++) {
-                ctx.lineTo(drawPath[i].x, drawPath[i].y);
-            }
-            ctx.stroke();
-
-            // 先頭にペン先マーク
-            const last = drawPath[drawPath.length - 1];
-            ctx.font = `${tileSize*0.6}px Arial`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('✏️', last.x, last.y - tileSize/2); // 少し上に
-        }
-
-        // 4. プレイヤー描画（モードBのみ）
-        if (currentMode === 'B') {
-            const px = playerPos.x * tileSize;
-            const py = playerPos.y * tileSize;
-            ctx.font = `${tileSize*0.7}px Arial`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('🐶', px + tileSize/2, py + tileSize/2);
-        }
-
-        // 5. 花火
-        for (const fw of fireworks) {
-            ctx.beginPath();
-            ctx.fillStyle = fw.color;
-            ctx.arc(fw.x, fw.y, fw.size, 0, Math.PI * 2);
-            ctx.fill();
-        }
-    }
-
-    /**
-     * 入力処理 - モードA (Mouse/Touch)
-     */
-    function getPos(e) {
-        const rect = canvas.getBoundingClientRect();
-        let clientX = e.clientX;
-        let clientY = e.clientY;
-        if (e.changedTouches && e.changedTouches.length > 0) {
-            clientX = e.changedTouches[0].clientX;
-            clientY = e.changedTouches[0].clientY;
-        }
-        return {
-            x: clientX - rect.left,
-            y: clientY - rect.top
-        };
-    }
-
-    function startDraw(e) {
-        if (currentMode !== 'A' || isGameClear) return;
-        e.preventDefault(); // スクロール防止
-        
-        // スタート地点近くでないと書き始められない判定を入れるとよりゲームらしいが、
-        // 4歳児向けなので、とりあえずどこからでも描ける、ただし壁判定は厳密にする、あるいは
-        // 既存の線の続きから描けるようにする等。
-        // シンプルに: 常に現在のパスの最後から継続して線を引くイメージ。
-        // 今回は「ドラッグ中は線を伸ばす」実装。
-        
-        isDrawing = true;
-        addPoint(getPos(e));
-    }
-
-    function drawing(e) {
-        if (!isDrawing || currentMode !== 'A' || isGameClear) return;
-        e.preventDefault();
-        addPoint(getPos(e));
-    }
-
-    function endDraw(e) {
-        isDrawing = false;
-    }
-
-    function addPoint(pos) {
-        // パスの最後の点との距離をチェックし、壁抜け判定を行う
-        if (drawPath.length === 0) {
-             // 最初の点はプレイヤー位置付近でなければならない、という制限を入れるならここ
-             // 今回は一旦制限なし、ただし壁の中には描けないようにする
-        }
-
-        const gridX = Math.floor(pos.x / tileSize);
-        const gridY = Math.floor(pos.y / tileSize);
-
-        // 範囲外チェック
-        if (gridX < 0 || gridX >= GRID_SIZE || gridY < 0 || gridY >= GRID_SIZE) return;
-
-        // 壁チェック
-        if (LEVEL_MAP[gridY][gridX] === 1) {
-            // 壁に当たったらそれ以上描かない
-            isDrawing = false;
-            return;
-        }
-        
-        // パスに追加
-        drawPath.push(pos);
-
-        // ゴール判定
-        if (LEVEL_MAP[gridY][gridX] === 3) {
-            gameClear();
-        }
-    }
-
-    /**
-     * 入力処理 - モードB (D-Pad)
-     */
-    function handleDPad(dir) {
-        if (currentMode !== 'B' || isGameClear) return;
-
-        let dx = 0;
-        let dy = 0;
-        if (dir === 'UP') dy = -1;
-        if (dir === 'DOWN') dy = 1;
-        if (dir === 'LEFT') dx = -1;
-        if (dir === 'RIGHT') dx = 1;
-
-        const nextX = playerPos.x + dx;
-        const nextY = playerPos.y + dy;
-
-        // 壁判定
-        if (nextX < 0 || nextX >= GRID_SIZE || nextY < 0 || nextY >= GRID_SIZE) return;
-        if (LEVEL_MAP[nextY][nextX] === 1) return;
-
-        // 足跡（後戻り禁止）判定
-        // nextX, nextY が既に visitedTiles に含まれているか
-        const isVisited = visitedTiles.some(t => t.x === nextX && t.y === nextY);
-        if (isVisited) {
-            // 既に行った場所には戻れない
-            return; 
-        }
-
-        // 移動実行
-        // 履歴保存
-        historyStack.push({
-            pos: { ...playerPos },
-            visitedCount: visitedTiles.length 
-            // visitedTilesそのもののスナップショットを取ると重いので、
-            // 「今回追加したタイル」を履歴管理すればよいが、
-            // シンプルに「undo時はvisitedTilesの末尾を削除」で対応できる（一本道なので）
-        });
-
-        playerPos = { x: nextX, y: nextY };
-        visitedTiles.push({ x: nextX, y: nextY });
-
-        // アイテムチェック
-        if (LEVEL_MAP[nextY][nextX] === 4) {
-            // visitedTilesに含まれた時点で「取得済み」扱い
-        }
-
-        // ゴール判定
-        if (LEVEL_MAP[nextY][nextX] === 3) {
-            checkWinConditionB();
-        }
-    }
-
-    function handleUndo() {
-        if (currentMode !== 'B' || isGameClear) return;
-        if (historyStack.length === 0) return;
-
-        const lastState = historyStack.pop();
-        playerPos = lastState.pos; // 位置を戻す
-        visitedTiles.pop(); // 最新の足跡を消す
-    }
-
-    function checkWinConditionB() {
-        // りんごをすべてあつめているかチェック
-        // visitedTiles の中に、MAP上のすべてのりんご座標が含まれているか
-        let collectedCount = 0;
-        for (const tile of visitedTiles) {
-            if (LEVEL_MAP[tile.y][tile.x] === 4) {
-                collectedCount++;
-            }
-        }
-
-        if (collectedCount >= totalItems) {
-            gameClear();
-        } else {
-            // まだ足りない場合のメッセージなどを出しても良い
-             const status = document.getElementById('status-text');
-             status.textContent = `りんごがあと ${totalItems - collectedCount}こ 足りないよ！`;
-             // すぐ戻す
-             setTimeout(() => {
-                 if(!isGameClear) status.textContent = '🍎をあつめてゴールへ！';
-             }, 2000);
-        }
-    }
-
-    function gameClear() {
-        if (isGameClear) return;
-        isGameClear = true;
-        isDrawing = false; // モードA用
-        
-        document.getElementById('message-overlay').style.display = 'flex';
-        
-        // 花火連発
-        for(let i=0; i<50; i++) createFirework();
-    }
-
-    /**
-     * 花火エフェクト
-     */
-    function createFirework() {
-        const x = Math.random() * canvas.width;
-        const y = Math.random() * canvas.height;
-        const color = `hsl(${Math.random()*360}, 100%, 70%)`;
-        for(let i=0; i<20; i++) {
-            fireworks.push({
-                x: x,
-                y: y,
-                vx: (Math.random() - 0.5) * 10,
-                vy: (Math.random() - 0.5) * 10,
-                size: Math.random() * 5 + 2,
-                color: color,
-                life: 1.0
-            });
-        }
-    }
-
-    function updateFireworks() {
-        for (let i = fireworks.length - 1; i >= 0; i--) {
-            const p = fireworks[i];
-            p.x += p.vx;
-            p.y += p.vy;
-            p.vy += 0.2; // gravity
-            p.life -= 0.02;
-            p.size *= 0.95;
-            
-            if (p.life <= 0) {
-                fireworks.splice(i, 1);
-            }
-        }
-    }
-
-</script>
+    </script>
 </body>
+
 </html>
