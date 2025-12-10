@@ -18,6 +18,7 @@
             align-items: center;
             justify-content: center;
             height: 100vh;
+            width: 100vw;
             overflow: hidden;
             user-select: none;
             -webkit-user-select: none;
@@ -29,13 +30,15 @@
             flex-direction: column;
             gap: 20px;
             text-align: center;
+            width: 90%;
+            max-width: 400px;
         }
 
         h1 {
             color: #FF7043;
             /* ポップなオレンジ */
-            font-size: 2.5rem;
-            margin-bottom: 30px;
+            font-size: clamp(2rem, 5vw, 3rem);
+            margin-bottom: 20px;
             text-shadow: 2px 2px 0px #FFF;
         }
 
@@ -45,12 +48,13 @@
             color: white;
             border: none;
             border-radius: 20px;
-            padding: 20px 40px;
+            padding: 20px;
             font-size: 1.5rem;
             font-weight: bold;
             cursor: pointer;
             box-shadow: 0 6px 0 #00897B;
             transition: transform 0.1s, box-shadow 0.1s;
+            width: 100%;
         }
 
         .mode-btn:active {
@@ -72,8 +76,27 @@
             display: none;
             flex-direction: column;
             align-items: center;
+            justify-content: center;
             width: 100%;
             height: 100%;
+            padding: 10px;
+        }
+
+        /* 横画面（タブレット・PC）対応 */
+        @media (min-width: 600px) and (orientation: landscape) {
+            #game-container {
+                flex-direction: row;
+                gap: 20px;
+            }
+
+            #controls-area {
+                display: flex !important;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                width: 300px;
+                /* 固定幅 */
+            }
         }
 
         /* キャンバス */
@@ -81,19 +104,21 @@
             background-color: #FFFFFF;
             border-radius: 10px;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-            margin: 10px;
             touch-action: none;
-            /* ブラウザのスクロールなどを無効化 */
+            /* レスポンシブ調整はJSで行うが、CSSでも上限設定 */
+            max-width: 95vw;
+            max-height: 80vh;
         }
 
-        /* UIパネル */
+        /* UIパネル（上部バー） */
         #ui-panel {
-            width: 90%;
-            max-width: 400px;
+            width: 100%;
+            max-width: 500px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
+            height: 60px;
         }
 
         .nav-btn {
@@ -106,6 +131,7 @@
             cursor: pointer;
             box-shadow: 0 4px 0 #D84315;
             color: white;
+            flex-shrink: 0;
         }
 
         .nav-btn:active {
@@ -113,10 +139,27 @@
             box-shadow: 0 2px 0 #D84315;
         }
 
-        /* D-Pad controls for Mode B */
+        #status-text {
+            font-size: clamp(1rem, 4vw, 1.4rem);
+            font-weight: bold;
+            color: #555;
+            text-align: center;
+            flex-grow: 1;
+            white-space: nowrap;
+        }
+
+        /* コントロールエリア (Mode B用) */
+        #controls-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            /* 縦画面時は幅いっぱい */
+            max-width: 400px;
+        }
+
         #d-pad {
             display: none;
-            /* デフォルトは非表示 */
             grid-template-columns: 1fr 1fr 1fr;
             grid-template-rows: 1fr 1fr;
             gap: 10px;
@@ -127,8 +170,9 @@
             background-color: #64B5F6;
             border: none;
             border-radius: 15px;
-            width: 80px;
-            height: 60px;
+            width: 70px;
+            /* 少し小さくしてモバイル対応 */
+            height: 55px;
             font-size: 2rem;
             color: white;
             cursor: pointer;
@@ -136,6 +180,8 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .d-btn:active {
@@ -143,10 +189,19 @@
             box-shadow: 0 2px 0 #1565C0;
         }
 
+        #d-pad-sub {
+            margin-top: 15px;
+            display: none;
+            width: 100%;
+            text-align: center;
+        }
+
         #undo-btn {
             background-color: #F06292;
             box-shadow: 0 5px 0 #AD1457;
             font-size: 1rem;
+            width: 150px;
+            margin: 0 auto;
         }
 
         #undo-btn:active {
@@ -170,12 +225,14 @@
 
         .message-box {
             background: orange;
-            padding: 30px;
+            padding: 20px;
+            width: 80%;
+            max-width: 400px;
             border-radius: 20px;
             text-align: center;
             color: white;
             font-weight: bold;
-            font-size: 2rem;
+            font-size: 1.5rem;
             border: 5px solid white;
             animation: popUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
@@ -190,7 +247,6 @@
             }
         }
 
-        /* カンタンなリセットCSS */
         * {
             box-sizing: border-box;
         }
@@ -203,79 +259,82 @@
     <div id="menu">
         <h1>🐶 知育迷路 🍎</h1>
         <button class="mode-btn" onclick="startGame('A')">✏️ おえかき迷路</button>
+        <div style="height: 20px;"></div>
         <button class="mode-btn purple" onclick="startGame('B')">🗺️ ぼうけん迷路</button>
     </div>
 
     <!-- ゲーム画面 -->
     <div id="game-container">
-        <div id="ui-panel">
-            <button class="nav-btn" onclick="goHome()">🏠</button>
-            <div id="status-text" style="font-size: 1.2rem; font-weight: bold; color:#555;"></div>
-            <div style="width: 50px;"></div> <!-- スペーサー -->
+
+        <!-- キャンバスとヘッダーラッパー -->
+        <div style="display:flex; flex-direction:column; align-items:center;">
+            <div id="ui-panel">
+                <button class="nav-btn" onclick="goHome()">🏠</button>
+                <div id="status-text"></div>
+                <div style="width: 50px;"></div>
+            </div>
+            <canvas id="gameCanvas"></canvas>
         </div>
 
-        <canvas id="gameCanvas"></canvas>
+        <!-- コントロールエリア (右側 or 下側) -->
+        <div id="controls-area">
+            <div id="d-pad">
+                <div style="grid-column: 2;">
+                    <button class="d-btn" onclick="handleDPad('UP')">⬆️</button>
+                </div>
+                <div style="grid-column: 1; grid-row: 2;">
+                    <button class="d-btn" onclick="handleDPad('LEFT')">⬅️</button>
+                </div>
+                <div style="grid-column: 2; grid-row: 2;">
+                    <button class="d-btn" onclick="handleDPad('DOWN')">⬇️</button>
+                </div>
+                <div style="grid-column: 3; grid-row: 2;">
+                    <button class="d-btn" onclick="handleDPad('RIGHT')">➡️</button>
+                </div>
+            </div>
 
-        <!-- モードB用コントローラー -->
-        <div id="d-pad">
-            <div style="grid-column: 2;">
-                <button class="d-btn" onclick="handleDPad('UP')">⬆️</button>
+            <div id="d-pad-sub">
+                <button id="undo-btn" class="d-btn" onclick="handleUndo()">１つもどる</button>
             </div>
-            <div style="grid-column: 1; grid-row: 2;">
-                <button class="d-btn" onclick="handleDPad('LEFT')">⬅️</button>
-            </div>
-            <div style="grid-column: 2; grid-row: 2;">
-                <button class="d-btn" onclick="handleDPad('DOWN')">⬇️</button>
-            </div>
-            <div style="grid-column: 3; grid-row: 2;">
-                <button class="d-btn" onclick="handleDPad('RIGHT')">➡️</button>
-            </div>
-        </div>
-
-        <!-- モードB用 Undoボタン (D-Padの下に配置) -->
-        <div id="d-pad-sub" style="margin-top: 15px; display: none;">
-            <button id="undo-btn" class="d-btn" onclick="handleUndo()">１つもどる</button>
         </div>
     </div>
 
     <!-- クリアメッセージ -->
-    <div id="message-overlay" onclick="goHome()">
-        <div class="message-box">
-            <div>🎉 クリア！ 🎉</div>
-            <div style="font-size: 1rem; margin-top: 10px;">タッチしてホームへ</div>
-        </div>
+    <div id="message-overlay">
+        <div class="message-box"></div>
     </div>
 
     <script>
         /**
-         * 定数・設定
+         * setting
          */
-        const TILE_SIZE = 40; // グリッドの基本サイズ（リサイズ時に再計算）
-        const GRID_SIZE = 10; // 10x10
         const TOTAL_LEVELS = 30;
 
         /**
          * 変数
          */
-        let currentMode = null; // 'A' or 'B'
+        let currentMode = null;
         let currentLevel = 1;
         let canvas, ctx;
         let tileSize = 0;
 
         // ゲーム状態
-        let levelMap = []; // 現在のマップデータ
+        let levelMap = [];
+        let gridSize = 10;
         let playerPos = { x: 1, y: 1 };
-        let collectedItems = 0;
-        let totalItems = 0;
+
+        let targetItemCount = 0; // 集めるべき目標数（LV3用）
+        let isExactCountMode = false; // ぴったり集めるモードか
+
         let isGameClear = false;
 
         // モードA用
         let isDrawing = false;
-        let drawPath = []; // {x, y} screen coordinates
+        let drawPath = [];
 
         // モードB用
-        let historyStack = []; // 履歴（Undo用）
-        let visitedTiles = []; // {x, y} grid coordinates
+        let historyStack = [];
+        let visitedTiles = [];
 
         // エフェクト用
         let fireworks = [];
@@ -285,75 +344,168 @@
          */
         class MazeGenerator {
             static generate(level) {
-                // 1. 全て壁で埋める
-                let map = Array(GRID_SIZE).fill(0).map(() => Array(GRID_SIZE).fill(1));
+                // レベルに応じたパラメータ設定
+                let size = 10;
+                if (level > 10) size = 12; // LV2~ は少し広く
 
-                // 2. 穴掘り法などで迷路生成 (奇数座標を道にする)
-                // スタート地点 (1, 1)
-                this.carve(map, 1, 1);
+                gridSize = size;
+                let map = Array(size).fill(0).map(() => Array(size).fill(1));
 
-                // 3. スタートとゴール配置
-                map[1][1] = 2; // Start
-                // ゴールは右下付近の道を探す
-                let gx = GRID_SIZE - 2;
-                let gy = GRID_SIZE - 2;
+                // スタートは常に(1,1)
+                let start = { x: 1, y: 1 };
+
+                // 迷路生成
+                if (level <= 10) {
+                    // LV1: 素直な迷路
+                    this.carve(map, start.x, start.y, 0.5); // Randomness high
+                } else if (level <= 20) {
+                    // LV2: 迷わせる迷路 (直進性を低くしてグネグネさせる)
+                    // Recursive Backtrackerは元々グネグネしやすいが、方向決定にランダム性を強くする
+                    this.carve(map, start.x, start.y, 1.0);
+                } else {
+                    // LV3: 分岐あり迷路（ループを作る）
+                    this.carve(map, start.x, start.y, 0.5);
+                    this.addLoops(map, 3 + Math.floor((level - 20) / 3)); // ループを追加して分岐を作る
+                }
+
+                // ゴール設定（右下付近）
+                let gx = size - 2;
+                let gy = size - 2;
                 while (map[gy][gx] === 1) {
-                    // 右下が壁なら少しずらす（穴掘り法なら基本右下まで掘れるはずだが念のため）
                     if (gx > 1) gx--;
-                    else { gx = GRID_SIZE - 2; gy--; }
+                    else { gx = size - 2; gy--; }
                 }
-                map[gy][gx] = 3; // Goal
+                let goal = { x: gx, y: gy };
 
-                // 4. 正解ルートを探す (BFS)
-                const path = this.findPath(map, { x: 1, y: 1 }, { x: gx, y: gy });
+                map[start.y][start.x] = 2;
+                map[goal.y][goal.x] = 3;
 
-                // 5. アイテム配置 (Mode Bの難易度調整)
-                // 確実にクリアできるように「正解ルート上」にだけアイテムを置く
-                // レベルに応じてアイテム数を増やす（最大5個くらい）
-                if (path && path.length > 2) {
-                    let itemCount = 2 + Math.floor(level / 10);
-                    // パスの中からランダムに選ぶ（スタート/ゴール除く）
-                    const candidates = path.slice(1, path.length - 1);
-                    // シャッフル
-                    for (let i = candidates.length - 1; i > 0; i--) {
-                        const j = Math.floor(Math.random() * (i + 1));
-                        [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
-                    }
-
-                    for (let k = 0; k < Math.min(itemCount, candidates.length); k++) {
-                        map[candidates[k].y][candidates[k].x] = 4;
-                    }
+                // アイテム配置
+                // LV3だけロジックが異なる（正解ルートと不正解ルートを作る）
+                if (level > 20) {
+                    return this.placeItemsLV3(map, start, goal, level);
+                } else {
+                    return this.placeItemsStandard(map, start, goal, level);
                 }
-
-                return map;
             }
 
-            static carve(map, x, y) {
+            static carve(map, x, y, randomness) {
                 const directions = [
-                    { dx: 0, dy: -2 }, // Up
-                    { dx: 0, dy: 2 },  // Down
-                    { dx: -2, dy: 0 }, // Left
-                    { dx: 2, dy: 0 }   // Right
+                    { dx: 0, dy: -2 }, { dx: 0, dy: 2 }, { dx: -2, dy: 0 }, { dx: 2, dy: 0 }
                 ];
 
-                // ランダムシャッフル
+                // シャッフル
                 for (let i = directions.length - 1; i > 0; i--) {
                     const j = Math.floor(Math.random() * (i + 1));
                     [directions[i], directions[j]] = [directions[j], directions[i]];
                 }
 
-                map[y][x] = 0; // 道にする
+                map[y][x] = 0;
 
                 for (const dir of directions) {
                     const nx = x + dir.dx;
                     const ny = y + dir.dy;
 
-                    // 範囲内かつ壁なら掘り進む
-                    if (nx > 0 && nx < GRID_SIZE - 1 && ny > 0 && ny < GRID_SIZE - 1 && map[ny][nx] === 1) {
-                        map[y + dir.dy / 2][x + dir.dx / 2] = 0; // 中間の壁も道にする
-                        this.carve(map, nx, ny);
+                    if (nx > 0 && nx < gridSize - 1 && ny > 0 && ny < gridSize - 1 && map[ny][nx] === 1) {
+                        map[y + dir.dy / 2][x + dir.dx / 2] = 0;
+                        this.carve(map, nx, ny, randomness);
                     }
                 }
+            }
+
+            static addLoops(map, count) {
+                let added = 0;
+                let attempts = 0;
+                while (added < count && attempts < 100) {
+                    attempts++;
+                    let x = Math.floor(Math.random() * (gridSize - 2)) + 1;
+                    let y = Math.floor(Math.random() * (gridSize - 2)) + 1;
+
+                    if (map[y][x] === 1) {
+                        // 上下左右が道かチェック（壁を取り除いて道をつなげる）
+                        let roads = 0;
+                        if (map[y - 1][x] === 0) roads++;
+                        if (map[y + 1][x] === 0) roads++;
+                        if (map[y][x - 1] === 0) roads++;
+                        if (map[y][x + 1] === 0) roads++;
+
+                        if (roads >= 2) {
+                            map[y][x] = 0;
+                            added++;
+                        }
+                    }
+                }
+            }
+
+            static placeItemsStandard(map, start, goal, level) {
+                // 正解ルートを見つける
+                const path = this.findPath(map, start, goal);
+                if (!path) return map; // 万が一
+
+                // パス上にアイテムを配置
+                let itemCount = 2 + Math.floor(level / 5);
+                if (level > 10) itemCount += 2; // LV2は少し多く
+
+                const candidates = path.slice(1, path.length - 1);
+                this.shuffle(candidates);
+
+                let placed = 0;
+                for (const p of candidates) {
+                    if (placed >= itemCount) break;
+                    map[p.y][p.x] = 4;
+                    placed++;
+                }
+
+                targetItemCount = placed;
+                isExactCountMode = false;
+                return map;
+            }
+
+            static placeItemsLV3(map, start, goal, level) {
+                // LV3: 分岐あり。
+                // 複数のルートがあるかもしれないが、単純なDFSをして、
+                // 「あるルートを通るとアイテムがN個になる」ように配置する。
+
+                // まず最短パス(に近いもの)を取得
+                const path = this.findPath(map, start, goal);
+
+                // 目標アイテム数を設定 (3〜6個)
+                let target = 3 + (level % 3);
+                targetItemCount = target;
+                isExactCountMode = true;
+
+                // パス上にtarget個だけ置く
+                const candidates = path.slice(1, path.length - 1);
+                this.shuffle(candidates);
+
+                // 正解ルートのセットアップ
+                let placed = 0;
+                let correctItemLocs = [];
+                for (const p of candidates) {
+                    if (placed >= target) break;
+                    map[p.y][p.x] = 4;
+                    correctItemLocs.push(`${p.x},${p.y}`);
+                    placed++;
+                }
+
+                // ダミー（罠）アイテムの配置
+                // パス以外の場所や、パス上だが目標個数を超えてしまう場所に置く
+                // 分岐先に置くのが効果的
+                let dummyCount = 3;
+                let placedDummy = 0;
+                let attempts = 0;
+                while (placedDummy < dummyCount && attempts < 200) {
+                    attempts++;
+                    let x = Math.floor(Math.random() * gridSize);
+                    let y = Math.floor(Math.random() * gridSize);
+
+                    if (map[y][x] === 0 && !correctItemLocs.includes(`${x},${y}`) && !(x === start.x && y === start.y) && !(x === goal.x && y === goal.y)) {
+                        map[y][x] = 4;
+                        placedDummy++;
+                    }
+                }
+
+                return map;
             }
 
             static findPath(map, start, goal) {
@@ -361,6 +513,7 @@
                 const visited = new Set();
                 visited.add(`${start.x},${start.y}`);
 
+                // 単純BFSで一つ見つける
                 while (q.length > 0) {
                     const path = q.shift();
                     const curr = path[path.length - 1];
@@ -368,10 +521,12 @@
                     if (curr.x === goal.x && curr.y === goal.y) return path;
 
                     const dirs = [{ x: 0, y: -1 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 1, y: 0 }];
+                    this.shuffle(dirs); // ランダム性を持たせる
+
                     for (const d of dirs) {
                         const nx = curr.x + d.x;
                         const ny = curr.y + d.y;
-                        if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE && map[ny][nx] !== 1) {
+                        if (nx >= 0 && nx < gridSize && ny >= 0 && ny < gridSize && map[ny][nx] !== 1) {
                             if (!visited.has(`${nx},${ny}`)) {
                                 visited.add(`${nx},${ny}`);
                                 q.push([...path, { x: nx, y: ny }]);
@@ -379,7 +534,14 @@
                         }
                     }
                 }
-                return null;
+                return [];
+            }
+
+            static shuffle(array) {
+                for (let i = array.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [array[i], array[j]] = [array[j], array[i]];
+                }
             }
         }
 
@@ -390,16 +552,14 @@
             canvas = document.getElementById('gameCanvas');
             ctx = canvas.getContext('2d');
 
-            // イベントリスナー (Canvas)
             canvas.addEventListener('mousedown', startDraw);
             canvas.addEventListener('mousemove', drawing);
             canvas.addEventListener('mouseup', endDraw);
-            canvas.addEventListener('mouseout', endDraw); // 画面外に出た時も終了
+            canvas.addEventListener('mouseout', endDraw);
             canvas.addEventListener('touchstart', startDraw, { passive: false });
             canvas.addEventListener('touchmove', drawing, { passive: false });
             canvas.addEventListener('touchend', endDraw);
 
-            // キーボード操作（デバッグ用・PC用）
             window.addEventListener('keydown', (e) => {
                 if (currentMode === 'B' && !isGameClear) {
                     if (e.key === 'ArrowUp') handleDPad('UP');
@@ -414,12 +574,22 @@
         };
 
         function resizeCanvas() {
-            // 画面幅に合わせてキャンバスサイズを調整
-            const maxSize = Math.min(window.innerWidth - 40, window.innerHeight - 300); // UI分を引く
-            const size = Math.floor(maxSize / GRID_SIZE) * GRID_SIZE;
-            canvas.width = size;
-            canvas.height = size;
-            tileSize = size / GRID_SIZE;
+            // UIの高さを考慮してリサイズ
+            const uiHeight = document.getElementById('ui-panel').offsetHeight || 60;
+            const controlsHeight = (currentMode === 'B' && window.innerWidth < 600) ? 200 : 0; // モバイル縦の時のみ考慮
+
+            // 横幅基準と高さ基準の小さい方を取る
+            const maxW = window.innerWidth - 20;
+            const maxH = window.innerHeight - uiHeight - controlsHeight - 20;
+
+            const size = Math.floor(Math.min(maxW, maxH));
+
+            // グリッドに合わせて調整
+            const adjustedSize = Math.floor(size / gridSize) * gridSize;
+
+            canvas.width = adjustedSize;
+            canvas.height = adjustedSize;
+            tileSize = adjustedSize / gridSize;
             draw();
         }
 
@@ -432,27 +602,56 @@
 
             document.getElementById('menu').style.display = 'none';
             document.getElementById('game-container').style.display = 'flex';
-            document.getElementById('message-overlay').style.display = 'none'; // 非表示確実に
+            document.getElementById('message-overlay').style.display = 'none';
 
-            // モード別UI切り替え
             const dPad = document.getElementById('d-pad');
             const dPadSub = document.getElementById('d-pad-sub');
             const statusText = document.getElementById('status-text');
 
+            // マップ生成
+            levelMap = MazeGenerator.generate(currentLevel);
+
             if (mode === 'B') {
                 dPad.style.display = 'grid';
                 dPadSub.style.display = 'block';
-                statusText.textContent = `Lv.${currentLevel} 🍎をあつめてゴールへ！`;
+                updateStatusTextB();
             } else {
                 dPad.style.display = 'none';
                 dPadSub.style.display = 'none';
                 statusText.textContent = 'ゆびでなぞってね！';
             }
 
-            // マップ生成
-            levelMap = MazeGenerator.generate(currentLevel);
+            // マップ設定後にリサイズ（gridSize変わるため）
+            resizeCanvas();
             resetGame();
             loop();
+        }
+
+        function updateStatusTextB() {
+            const collected = getCollectedCount();
+            const status = document.getElementById('status-text');
+
+            if (isExactCountMode) {
+                status.textContent = `Lv.${currentLevel} 🍎を ${targetItemCount}こ あつめてね (いま:${collected})`;
+                if (collected > targetItemCount) {
+                    status.textContent = `とりすぎだよ！ 🍎は ${targetItemCount}こ だけ！`;
+                    status.style.color = "red";
+                } else {
+                    status.style.color = "#555";
+                }
+            } else {
+                const remaining = targetItemCount - collected;
+                status.textContent = `Lv.${currentLevel} 🍎あと ${remaining}こ！`;
+                status.style.color = "#555";
+            }
+        }
+
+        function getCollectedCount() {
+            let cnt = 0;
+            for (const tile of visitedTiles) {
+                if (levelMap[tile.y][tile.x] === 4) cnt++;
+            }
+            return cnt;
         }
 
         function goHome() {
@@ -460,33 +659,27 @@
             document.getElementById('game-container').style.display = 'none';
             document.getElementById('message-overlay').style.display = 'none';
             currentMode = null;
-            cancelAnimationFrame(loopId); // ループ停止
+            if (loopId) cancelAnimationFrame(loopId);
         }
 
         function resetGame() {
-            // プレイヤー位置をスタート地点へ
-            for (let y = 0; y < GRID_SIZE; y++) {
-                for (let x = 0; x < GRID_SIZE; x++) {
+            for (let y = 0; y < gridSize; y++) {
+                for (let x = 0; x < gridSize; x++) {
                     if (levelMap[y][x] === 2) {
                         playerPos = { x, y };
                     }
                 }
             }
 
-            countItems();
-            collectedItems = 0;
             isGameClear = false;
             fireworks = [];
 
-            // モードAリセット
             isDrawing = false;
             drawPath = [];
-            // スタート地点を中心にパスの初期点とする
             const cx = playerPos.x * tileSize + tileSize / 2;
             const cy = playerPos.y * tileSize + tileSize / 2;
             drawPath.push({ x: cx, y: cy });
 
-            // モードBリセット
             historyStack = [];
             visitedTiles = [];
             visitedTiles.push({ x: playerPos.x, y: playerPos.y });
@@ -494,32 +687,17 @@
             draw();
         }
 
-        function countItems() {
-            totalItems = 0;
-            for (let y = 0; y < GRID_SIZE; y++) {
-                for (let x = 0; x < GRID_SIZE; x++) {
-                    if (levelMap[y][x] === 4) totalItems++;
-                }
-            }
-        }
-
         let loopId;
-        /**
-         * メインループ
-         */
         function loop() {
             if (!currentMode) return;
-
             update();
             draw();
-
             loopId = requestAnimationFrame(loop);
         }
 
         function update() {
             if (isGameClear) {
-                // 花火更新
-                if (Math.random() < 0.1) createFirework(); // 増やす
+                if (Math.random() < 0.1) createFirework();
                 updateFireworks();
             }
         }
@@ -532,45 +710,32 @@
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // 1. マップ描画
-            for (let y = 0; y < GRID_SIZE; y++) {
-                for (let x = 0; x < GRID_SIZE; x++) {
+            // 1. マップ
+            for (let y = 0; y < gridSize; y++) {
+                for (let x = 0; x < gridSize; x++) {
                     const cell = levelMap[y][x];
                     const px = x * tileSize;
                     const py = y * tileSize;
 
-                    // 床
                     ctx.fillStyle = '#FFF8E1';
-                    if ((x + y) % 2 === 0) ctx.fillStyle = '#FFECB3'; // チェック柄
+                    if ((x + y) % 2 === 0) ctx.fillStyle = '#FFECB3';
                     ctx.fillRect(px, py, tileSize, tileSize);
 
-                    // 壁
                     if (cell === 1) {
-                        ctx.fillStyle = '#8D6E63'; // 茶色いレンガ風
+                        ctx.fillStyle = '#8D6E63';
                         ctx.fillRect(px + 2, py + 2, tileSize - 4, tileSize - 4);
-                        // 壁の装飾
+
                         ctx.fillStyle = '#6D4C41';
                         ctx.fillRect(px + 5, py + 8, tileSize - 10, tileSize / 4);
                         ctx.fillRect(px + 5, py + tileSize / 2 + 4, tileSize - 10, tileSize / 4);
                     }
 
-                    // スタート
                     if (cell === 2) {
-                        ctx.font = `${tileSize * 0.6}px Arial`;
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
-                        ctx.fillText('🏠', px + tileSize / 2, py + tileSize / 2);
+                        drawEmoji('🏠', px, py, 0.7);
                     }
-
-                    // ゴール
                     if (cell === 3) {
-                        ctx.font = `${tileSize * 0.6}px Arial`;
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
-                        ctx.fillText('🚩', px + tileSize / 2, py + tileSize / 2);
+                        drawEmoji('🚩', px, py, 0.7);
                     }
-
-                    // アイテム
                     if (cell === 4) {
                         let isCollected = false;
                         if (currentMode === 'B') {
@@ -578,69 +743,62 @@
                                 isCollected = true;
                             }
                         }
-                        // Mode Aでも表示する（飾り）
-
                         if (!isCollected) {
-                            ctx.font = `${tileSize * 0.6}px Arial`;
-                            ctx.textAlign = 'center';
-                            ctx.textBaseline = 'middle';
-                            ctx.fillText('🍎', px + tileSize / 2, py + tileSize / 2);
+                            drawEmoji('🍎', px, py, 0.6);
+                        } else {
+                            // 取得済み跡地
+                            ctx.globalAlpha = 0.3;
+                            drawEmoji('🍎', px, py, 0.4);
+                            ctx.globalAlpha = 1.0;
                         }
                     }
                 }
             }
 
-            // 2. モードB固有描画：足跡
+            function drawEmoji(char, x, y, scale) {
+                ctx.font = `${tileSize * scale}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(char, x + tileSize / 2, y + tileSize / 2);
+            }
+
+            // 2. 足跡 (Mode B)
             if (currentMode === 'B') {
                 for (const tile of visitedTiles) {
-                    // 現在地以外を描画
                     if (tile.x === playerPos.x && tile.y === playerPos.y) continue;
 
-                    // 青い半透明タイル
                     ctx.fillStyle = 'rgba(33, 150, 243, 0.3)';
                     ctx.fillRect(tile.x * tileSize + 2, tile.y * tileSize + 2, tileSize - 4, tileSize - 4);
 
-                    // 足跡マーク
-                    ctx.font = `${tileSize * 0.4}px Arial`;
-                    ctx.fillStyle = '#1565C0'; // 濃い青
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText('🐾', tile.x * tileSize + tileSize / 2, tile.y * tileSize + tileSize / 2);
+                    drawEmoji('🐾', tile.x * tileSize, tile.y * tileSize, 0.4);
                 }
             }
 
-            // 3. モードA固有描画：線
+            // 3. 線 (Mode A)
             if (currentMode === 'A' && drawPath.length > 0) {
                 ctx.beginPath();
-                ctx.lineWidth = tileSize / 3; // 太く
+                ctx.lineWidth = tileSize / 3;
                 ctx.lineCap = 'round';
                 ctx.lineJoin = 'round';
-                ctx.strokeStyle = 'rgba(255, 112, 67, 0.8)'; // オレンジ半透明
+                ctx.strokeStyle = 'rgba(255, 112, 67, 0.8)';
                 ctx.moveTo(drawPath[0].x, drawPath[0].y);
                 for (let i = 1; i < drawPath.length; i++) {
                     ctx.lineTo(drawPath[i].x, drawPath[i].y);
                 }
                 ctx.stroke();
 
-                // 先頭にペン先マーク
                 const last = drawPath[drawPath.length - 1];
-                ctx.font = `${tileSize * 0.6}px Arial`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText('✏️', last.x, last.y - tileSize / 2); // 少し上に
+                drawEmoji('✏️', last.x - tileSize / 2, last.y - tileSize, 0.6);
             }
 
-            // 4. プレイヤー描画（モードBのみ）
+            // 4. Player (Mode B)
             if (currentMode === 'B') {
                 const px = playerPos.x * tileSize;
                 const py = playerPos.y * tileSize;
-                ctx.font = `${tileSize * 0.7}px Arial`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText('🐶', px + tileSize / 2, py + tileSize / 2);
+                drawEmoji('🐶', px, py, 0.7);
             }
 
-            // 5. 花火
+            // 5. Firework
             for (const fw of fireworks) {
                 ctx.beginPath();
                 ctx.fillStyle = fw.color;
@@ -650,7 +808,7 @@
         }
 
         /**
-         * 入力処理 - モードA (Mouse/Touch)
+         * Input Mode A
          */
         function getPos(e) {
             const rect = canvas.getBoundingClientRect();
@@ -669,7 +827,6 @@
         function startDraw(e) {
             if (currentMode !== 'A' || isGameClear) return;
             e.preventDefault();
-
             isDrawing = true;
             addPoint(getPos(e));
         }
@@ -688,31 +845,26 @@
             const gridX = Math.floor(pos.x / tileSize);
             const gridY = Math.floor(pos.y / tileSize);
 
-            // 範囲外チェック
-            if (gridX < 0 || gridX >= GRID_SIZE || gridY < 0 || gridY >= GRID_SIZE) return;
+            if (gridX < 0 || gridX >= gridSize || gridY < 0 || gridY >= gridSize) return;
 
-            // 壁チェック
             if (levelMap[gridY][gridX] === 1) {
                 isDrawing = false;
                 return;
             }
-
             drawPath.push(pos);
-
-            // ゴール判定
             if (levelMap[gridY][gridX] === 3) {
+                // Mode Aはリンゴ関係なくゴールでクリア（簡単）
                 gameLevelComplete();
             }
         }
 
         /**
-         * 入力処理 - モードB (D-Pad)
+         * Input Mode B
          */
         function handleDPad(dir) {
             if (currentMode !== 'B' || isGameClear) return;
 
-            let dx = 0;
-            let dy = 0;
+            let dx = 0; let dy = 0;
             if (dir === 'UP') dy = -1;
             if (dir === 'DOWN') dy = 1;
             if (dir === 'LEFT') dx = -1;
@@ -721,14 +873,11 @@
             const nextX = playerPos.x + dx;
             const nextY = playerPos.y + dy;
 
-            if (nextX < 0 || nextX >= GRID_SIZE || nextY < 0 || nextY >= GRID_SIZE) return;
+            if (nextX < 0 || nextX >= gridSize || nextY < 0 || nextY >= gridSize) return;
             if (levelMap[nextY][nextX] === 1) return;
 
             const isVisited = visitedTiles.some(t => t.x === nextX && t.y === nextY);
-            if (isVisited) {
-                // 戻れないエフェクト（ぷるっと震えるなど）入れたいが今回は省略
-                return;
-            }
+            if (isVisited) return;
 
             historyStack.push({
                 pos: { ...playerPos },
@@ -737,6 +886,8 @@
 
             playerPos = { x: nextX, y: nextY };
             visitedTiles.push({ x: nextX, y: nextY });
+
+            updateStatusTextB();
 
             if (levelMap[nextY][nextX] === 3) {
                 checkWinConditionB();
@@ -750,27 +901,33 @@
             const lastState = historyStack.pop();
             playerPos = lastState.pos;
             visitedTiles.pop();
+            updateStatusTextB();
             draw();
         }
 
         function checkWinConditionB() {
-            let collectedCount = 0;
-            for (const tile of visitedTiles) {
-                if (levelMap[tile.y][tile.x] === 4) {
-                    collectedCount++;
-                }
+            let collected = getCollectedCount();
+
+            let win = false;
+            if (isExactCountMode) {
+                // LV3: ぴったりでないとダメ
+                win = (collected === targetItemCount);
+            } else {
+                // LV1, LV2: 全部とればOK（targetItemCountには総数が入っている）
+                win = (collected >= targetItemCount);
             }
 
-            if (collectedCount >= totalItems) {
+            if (win) {
                 gameLevelComplete();
             } else {
                 const status = document.getElementById('status-text');
-                const remaining = totalItems - collectedCount;
-                status.textContent = `あと ${remaining}こ！`;
-                // すぐ戻す
-                setTimeout(() => {
-                    if (!isGameClear) status.textContent = `Lv.${currentLevel} 🍎をあつめてゴールへ！`;
-                }, 1500);
+
+                if (isExactCountMode && collected > targetItemCount) {
+                    status.textContent = `とりすぎ！もどってやりなおしてね`;
+                } else {
+                    status.textContent = `まだ足りないよ！`;
+                    setTimeout(() => updateStatusTextB(), 1500);
+                }
             }
         }
 
@@ -782,27 +939,19 @@
             const overlay = document.getElementById('message-overlay');
             overlay.style.display = 'flex';
 
-            // メッセージ内容更新
             const msgBox = overlay.querySelector('.message-box');
             msgBox.innerHTML = `
             <div>🎉 Level ${currentLevel} クリア！ 🎉</div>
             ${currentLevel < TOTAL_LEVELS ?
-                    '<button onclick="nextLevel()" style="background:#fff; color:orange; border:none; padding:10px 20px; font-size:1.5rem; border-radius:10px; margin-top:20px; cursor:pointer;">つぎへ ➡</button>' :
+                    '<button onclick="nextLevel()" style="background:#fff; color:orange; border:none; padding:10px 20px; font-size:1.5rem; border-radius:10px; margin-top:20px; cursor:pointer; box-shadow:0 4px #ccc;">つぎへ ➡</button>' :
                     '<div style="font-size:1.2rem; margin-top:10px;">ぜんぶクリア！おめでとう！🏆</div><div style="font-size:1rem; margin-top:10px;">タッチしてホームへ</div>'}
         `;
 
-            // 最後以外の時はクリックでホームに戻らないように、イベント伝播を止める工夫が必要だが
-            // シンプルにオーバーレイのonclickは「全クリ時」または「次へボタン以外をクリック時」にホームに戻るようにする
-            // ここでは nextLevel() を呼ぶボタンを作ったので、オーバーレイ全体のonclickイベントと競合しないようにする。
-            // -> nextLevel()内で stopPropagation する。
-
-            // 花火連発
             for (let i = 0; i < 50; i++) createFirework();
         }
 
-        // グローバル関数に追加（HTMLから呼ぶため）
         window.nextLevel = function (event) {
-            if (event) event.stopPropagation(); // 親のgoHome発火を防ぐ
+            if (event) event.stopPropagation();
             if (currentLevel < TOTAL_LEVELS) {
                 startGame(currentMode, currentLevel + 1);
             } else {
@@ -810,25 +959,13 @@
             }
         };
 
-        // オーバーレイクリック時の挙動修正
-        // message-overlayのonclick="goHome()"を削除し、動的に制御したほうが安全だが、
-        // 既存HTMLを生かすなら、goHome側で制御する。
-        // 今回はHTML側を変更できない（replace_file_contentの制限）ので、
-        // JSでイベントを上書きする。
         setTimeout(() => {
             const overlay = document.getElementById('message-overlay');
             overlay.onclick = (e) => {
-                // ボタンが押された場合は無視（バブリングで来るけど念のため）
                 if (e.target.tagName === 'BUTTON') return;
-                // 全クリまたは、次へボタンがない場所をクリックしたらHomeへ
                 if (currentLevel >= TOTAL_LEVELS) {
                     goHome();
                 }
-                // まだ続く場合は、Homeに戻るか迷うが…
-                // 4歳児が誤って閉じてしまうのを防ぐため、次へボタンがあるときはHomeに戻らないようにする？
-                // いや、やめたいかもしれない。
-                // 動作を明確にするため、「ホームへ」ボタンをクリア画面にも出すのがベストだが、
-                // 既存UI維持なら、「オーバーレイタップ」＝「次へ」または「ホーム（全クリ時）」が直感的。
                 if (currentLevel < TOTAL_LEVELS) {
                     startGame(currentMode, currentLevel + 1);
                 }
@@ -836,7 +973,7 @@
         }, 100);
 
         /**
-         * 花火エフェクト
+         * Effect
          */
         function createFirework() {
             const x = Math.random() * canvas.width;
@@ -860,7 +997,7 @@
                 const p = fireworks[i];
                 p.x += p.vx;
                 p.y += p.vy;
-                p.vy += 0.2; // gravity
+                p.vy += 0.2;
                 p.life -= 0.02;
                 p.size *= 0.95;
 
